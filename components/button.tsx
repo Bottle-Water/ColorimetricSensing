@@ -2,8 +2,7 @@ import { faCircleDot } from "@fortawesome/free-regular-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-native-fontawesome";
 import { Pressable, StyleSheet } from "react-native";
 
-
-export default function Button({
+export function Button({
   backgroundColor="#ffffff",
   borderColor="#000000", borderWidth=0,
   icon=faCircleDot, iconColor="#000000", iconScale=2/3,
