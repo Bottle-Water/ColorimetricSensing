@@ -1,61 +1,58 @@
-import Button from "@/components/button";
-import Experiment, { ExperimentProps, newExperimentProps } from "@/components/experiment";
+import { Button } from "@/components/button";
+import { Summary } from "@/components/experiment";
+import { Experiment } from "@/types/experiment";
+import { createExperiment, getExperiments } from "@/utilities/storage";
 import { faUser } from "@fortawesome/free-regular-svg-icons";
 import { faFlask, faMagnifyingGlass } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-native-fontawesome";
-import { useEffect, useState } from "react";
-import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useState } from "react";
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 
-const fakeExperimentData: ExperimentProps[] = [
-  {
-    id: 1,
-    type: "IgG",
-    name: "Experiment",
-    date: "2025-03-24",
-    description: "In this experiment we blah blah blah...",
-    data: [],
-    result: null,
-    notes: "",
-  },
-  {
-    id: 2,
-    type: "Ammonia",
-    name: "Experiment",
-    date: "2025-04-13",
-    description: "In this experiment we blah blah blah...",
-    data: [],
-    result: 24,
-    notes: "",
-  },
-  {
-    id: 3,
-    type: "IgG",
-    name: "Experiment",
-    date: "2025-05-02",
-    description: "In this experiment we blah blah blah...",
-    data: [],
-    result: null,
-    notes: "",
-  },
-];
+export default function LabBookScreen() {
 
+  const router = useRouter();
+  const [allExperiments, setAllExperiments] = useState<Experiment[]>();
+  const [filteredExperiments, setFilteredExperiments] = useState<Experiment[]>();
 
-export default function LabBook() {
+  useFocusEffect(
+    useCallback(() => {
 
-  const [selectedExperiment, setSelectedExperiment] = useState<null|ExperimentProps>(null);
+      const fun = async () => {
+        console.log("Lab Book in focus.");
+        const experiments = await getExperiments();
+        console.log(experiments);
+        setAllExperiments(experiments);
+        setFilteredExperiments(experiments);
+      }
+      fun();
 
-  const [nextId, setNextId] = useState(0);
-  const [allExperiments, setAllExperiments] = useState<ExperimentProps[]>([]);
-  const [filteredExperiments, setFilteredExperiments] = useState<ExperimentProps[]>([]);
+      return () => {
+        // Clean up async.
+        console.log("Lab Book out of focus.");
+      };
 
-  useEffect(() => {
-    setNextId(4);
-    setAllExperiments(fakeExperimentData);
-    setFilteredExperiments(fakeExperimentData);
-  }, []);
+    }, [])
+  );
 
-  const filterExperiments = (searchKeyword: string) => {
+  if (!allExperiments || !filteredExperiments) {
+    return <View></View>
+  }
+
+  // useCallback()?
+  const create = async () => {
+    const experimentId = await createExperiment();
+    router.navigate(`/experiment/${experimentId}`);
+  }
+
+  // useCallback()?
+  const select = (experimentId: number) => {
+    router.navigate(`/experiment/${experimentId}`)
+  }
+
+  // useCallback()?
+  const filter = (searchKeyword: string) => {
     console.log(searchKeyword);
     const newFilteredExperiments = [];
     for (const experiment of allExperiments) {
@@ -65,42 +62,31 @@ export default function LabBook() {
         newFilteredExperiments.push(experiment);
       }
     }
-    console.log(newFilteredExperiments)
+    console.log(newFilteredExperiments);
     setFilteredExperiments(newFilteredExperiments);
-  }
-
-  const createNewExperiment = () => {
-    const props = newExperimentProps(nextId);
-    setNextId(nextId+1);
-    setSelectedExperiment(props);
-  }
-
-  if (selectedExperiment != null) {
-    return (
-      <Experiment onBack={() => {setSelectedExperiment(null)}}
-                  props={selectedExperiment} />
-    );
   }
 
   return (
     <>
 
       <View style={styles.header}>
-        <Button icon={faFlask} margin={10} onPress={() => {createNewExperiment()}} />
+        <Button icon={faFlask} margin={10} onPress={create} />
         <Text style={styles.title}>Lab Book</Text>
         <Button icon={faUser} margin={10} />
       </View>
 
       <ScrollView>
         {filteredExperiments.map((experiment) => (
-          <Experiment key={experiment.id} props={experiment} summary onPress={setSelectedExperiment} />
+          <Pressable key={experiment.id} onPress={()=>select(experiment.id)}>
+            <Summary experiment={experiment} />
+          </Pressable>
         ))}
       </ScrollView>
 
       <View style={styles.searchbar}>
         <FontAwesomeIcon icon={faMagnifyingGlass} />
         <TextInput inputMode="search"
-                   onSubmitEditing={(event) => {filterExperiments(event.nativeEvent.text)}}
+                   onSubmitEditing={(event) => {filter(event.nativeEvent.text)}}
                    placeholder="Search"
                    style={styles.searchinput} />
       </View>
@@ -113,7 +99,7 @@ export default function LabBook() {
 const styles = StyleSheet.create({
   header: {
     alignItems: "center",
-    backgroundColor: "#f0f0f0",
+    backgroundColor: "#c7c6c1",
     flexDirection: "row",
     justifyContent: "space-between",
   },
@@ -123,12 +109,13 @@ const styles = StyleSheet.create({
   },
   searchbar: {
     alignItems: "center",
-    backgroundColor: "#f0f0f0",
+    backgroundColor: "#c7c6c1",
     flexDirection: "row",
     justifyContent: "space-between",
     padding: 10,
   },
   searchinput: {
+    backgroundColor: "white",
     borderRadius: 15,
     borderWidth: 1,
     flex: 1,
