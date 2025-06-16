@@ -1,19 +1,21 @@
 import { Button } from "@/components/button";
 import { Summary } from "@/components/summary";
 import { Experiment } from "@/types/experiment";
-import { createExperiment, getExperiments } from "@/utilities/storage";
+import { createExperiment, debugStorage, deletedUnsavedExperiments, getExperiments, serialize } from "@/utilities/storage";
 import { faUser } from "@fortawesome/free-regular-svg-icons";
 import { faFlask, faMagnifyingGlass } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-native-fontawesome";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { NativeSyntheticEvent, Pressable, ScrollView, StyleSheet, Text, TextInput, TextInputSubmitEditingEventData, View } from "react-native";
 
 
 export default function LabBookScreen() {
 
 
   const router = useRouter();
+
+
   const [allExperiments, setAllExperiments] = useState<Experiment[]>();
   const [filteredExperiments, setFilteredExperiments] = useState<Experiment[]>();
 
@@ -23,10 +25,13 @@ export default function LabBookScreen() {
 
       const fun = async () => {
         console.log("Lab Book in focus.");
+        await debugStorage();
+        await deletedUnsavedExperiments();
         const experiments = await getExperiments();
-        console.log(experiments);
         setAllExperiments(experiments);
         setFilteredExperiments(experiments);
+        console.log(`All Experiments: ${serialize(experiments)}`);
+        await debugStorage();
       }
       fun();
 
@@ -38,27 +43,22 @@ export default function LabBookScreen() {
   );
 
 
-  console.log(`All Experiments: ${allExperiments}`);
-  console.log(`Filtered Experiments: ${filteredExperiments}`);
-
-
   if (!allExperiments || !filteredExperiments) {
     return <View></View>
   }
 
 
-  const create = async () => {
+  const help_ = () => { /* TODO */ };
+
+
+  const create_ = async () => {
     const experimentId = await createExperiment();
     router.navigate(`/experiment/${experimentId}`);
-  }
+  };
 
 
-  const select = (experimentId: number) => {
-    router.navigate(`/experiment/${experimentId}`)
-  }
-
-
-  const filter = (searchKeyword: string) => {
+  const filter_ = (event: NativeSyntheticEvent<TextInputSubmitEditingEventData>) => {
+    const searchKeyword = event.nativeEvent.text;
     console.log(`Searching Keyword: ${searchKeyword}`);
     const newFilteredExperiments = [];
     for (const experiment of allExperiments) {
@@ -69,7 +69,8 @@ export default function LabBookScreen() {
       }
     }
     setFilteredExperiments(newFilteredExperiments);
-  }
+    console.log(`Filtered Experiments: ${serialize(filteredExperiments)}`);
+  };
 
 
   return (
@@ -77,27 +78,40 @@ export default function LabBookScreen() {
 
 
       <View style={styles.header}>
-        <Button icon={faFlask} margin={10} onPress={create} />
+        <Button
+          icon={faFlask}
+          margin={10}
+          onPress={create_}
+        />
         <Text style={styles.title}>Lab Book</Text>
-        <Button icon={faUser} margin={10} />
+        <Button
+          icon={faUser}
+          margin={10}
+          onPress={help_}
+        />
       </View>
 
 
       <ScrollView>
         {filteredExperiments.map((experiment) => (
-          <Pressable key={experiment.id} onPress={()=>select(experiment.id)}>
-            <Summary experiment={experiment} />
-          </Pressable>
+        <Pressable
+          key={experiment.id}
+          onPress={()=>router.navigate(`/experiment/${experiment.id}`)}
+        >
+          <Summary experiment={experiment} />
+        </Pressable>
         ))}
       </ScrollView>
 
 
       <View style={styles.searchbar}>
         <FontAwesomeIcon icon={faMagnifyingGlass} />
-        <TextInput inputMode="search"
-                   onSubmitEditing={(event) => {filter(event.nativeEvent.text)}}
-                   placeholder="Search"
-                   style={styles.searchinput} />
+        <TextInput
+          inputMode="search"
+          onSubmitEditing={filter_}
+          placeholder="Search"
+          style={styles.searchinput}
+        />
       </View>
 
 
