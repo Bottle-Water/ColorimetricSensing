@@ -22,13 +22,13 @@ export function Visualization({experiment}: {experiment: Experiment}) {
 const styles = StyleSheet.create({
   centeredcontainer: {
     alignItems: "center",
-    backgroundColor: "#239ED0",
-    color:"white",
+    backgroundColor: "white",
+    borderRadius: 5,
+    borderWidth: 1,
     flex: 1,
     justifyContent: "center"
   },
   resultvalue: {
-    color: "white",
     fontSize: 18
   }
 });
