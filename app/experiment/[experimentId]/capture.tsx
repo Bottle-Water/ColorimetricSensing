@@ -1,10 +1,11 @@
 import { Button } from "@/components/button";
 import { Experiment } from "@/types/experiment";
-import { getExperiment } from "@/utilities/storage";
-import { faArrowLeft, faQuestion } from "@fortawesome/free-solid-svg-icons";
+import { createDataPoint, getExperiment, serialize } from "@/utilities/storage";
+import { faLightbulb } from "@fortawesome/free-regular-svg-icons";
+import { faArrowLeft, faCamera, faCheck, faQuestion, faXmark } from "@fortawesome/free-solid-svg-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useRef, useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, StyleSheet, Text, View } from 'react-native';
 import { Camera, useCameraDevice, useCameraPermission } from 'react-native-vision-camera';
 
 
@@ -13,6 +14,8 @@ export default function CaptureScreen() {
 
   const router = useRouter();
   const {experimentId} = useLocalSearchParams<{experimentId:string}>();
+
+
   const [experiment, setExperiment] = useState<Experiment>();
 
 
@@ -20,6 +23,9 @@ export default function CaptureScreen() {
   const device = useCameraDevice('back');
   const {hasPermission, requestPermission} = useCameraPermission();
   const [torchState, setTorchState] = useState<'on'|'off'>('off');
+
+
+  const [imageURI, setImageURI] = useState("");
 
 
   useFocusEffect(
@@ -34,6 +40,7 @@ export default function CaptureScreen() {
           return;
         }
         setExperiment(experiment);
+        console.log(`Experiment: ${serialize(experiment)}`);
       }
       fun();
 
@@ -44,6 +51,11 @@ export default function CaptureScreen() {
 
     }, [router, experimentId])
   );
+
+
+  if (!experiment) {
+    return <View></View>
+  }
 
 
   if (!device) {
@@ -69,16 +81,22 @@ export default function CaptureScreen() {
   }
 
 
-  console.log(experiment);
+  const help_ = () => { /* TODO */ };
 
 
   const capture = async () => {
-    const dataId = Math.round(Math.random() * 5);
     const image = await cameraRef.current?.takePhoto({flash: 'off'});
     if (image) {
-      // Is file:// needed and is it cross platform?
-      const file_path = `file://${image.path}`;
-      console.log(file_path);
+      setImageURI(image.path);
+    }
+  };
+
+
+  const confirm = async () => {
+    const dataId = await createDataPoint(experiment.id, imageURI);
+    if (!dataId) {
+      Alert.alert(`Confirm was unsuccessful.`);
+      return;
     }
     router.replace(`/experiment/${experimentId}/canvas/${dataId}`);
   };
@@ -93,8 +111,20 @@ export default function CaptureScreen() {
       <View style={styles.header}>
         <Button icon={faArrowLeft} margin={10} onPress={()=>router.back()} />
         <Text style={styles.title}>Capture</Text>
-        <Button icon={faQuestion} margin={10} />
+        <Button icon={faQuestion} margin={10} onPress={help_} />
       </View>
+
+
+      {imageURI?
+
+      <Image
+        source={{
+          uri: imageURI
+        }}
+        style={styles.image}
+      />
+
+      :
 
       <Camera
         style={styles.camera}
@@ -106,17 +136,37 @@ export default function CaptureScreen() {
         onInitialized={() => {Alert.alert('Camera is Ready!');}}
       />
 
+      }
+
+
       <View style={styles.actionbar}>
 
         <View style={styles.actionbarleftpanel}></View>
 
         <View style={styles.actionbarcenterpanel}>
-          <Button margin={10} onPress={capture} />
+          {imageURI?
+          <>
+          <Button
+            backgroundColor="green"
+            icon={faCheck}
+            margin={10}
+            onPress={confirm}
+          />
+          <Button
+            backgroundColor="red"
+            icon={faXmark}
+            margin={10}
+            onPress={()=>setImageURI("")}
+          />
+          </>
+          :
+          <Button icon={faCamera} margin={10} onPress={capture} />
+          }
         </View>
 
         <View style={styles.actionbarrightpanel}>
-          { device.hasTorch &&
-          <Button margin={10} onPress={() => {setTorchState(nextTorchState);}} />
+          {device.hasTorch && !imageURI &&
+          <Button icon={faLightbulb} margin={10} onPress={() => {setTorchState(nextTorchState);}} />
           }
         </View>
       </View>
@@ -133,19 +183,28 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: "center",
-    backgroundColor: "#c7c6c1",
+    backgroundColor: "#A9A9A9",
     flexDirection: "row",
     justifyContent: "space-between",
+    borderBottomColor: "black",
+    borderBottomWidth: 3
   },
   title: {
+    color:"white",
     fontSize: 25,
     fontWeight: "bold",
+  },
+  image: {
+    flex: 1
   },
   camera: {
     flex: 1,
   },
   actionbar: {
-    flexDirection: "row"
+    flexDirection: "row",
+    backgroundColor: "#A9A9A9",
+    borderTopColor: "black",
+    borderTopWidth: 3
   },
   actionbarleftpanel: {
     flex: 1
