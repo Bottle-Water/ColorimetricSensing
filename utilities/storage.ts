@@ -4,13 +4,45 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Directory, File, Paths } from "expo-file-system/next";
 
 
-export async function getExperiments() {
+export function serialize(object: any) {
+  return JSON.stringify(object);
+}
+
+
+export function unserialize(object: any) {
+  return JSON.parse(object);
+}
+
+
+export async function debugStorage() {
+  const labbook = await loadLabBook();
+  console.log(`Lab Book: ${serialize(labbook)}`);
+  const images = [];
+  for (const image of (new Directory(Paths.document, "images")).list()) {
+    images.push(image.name);
+  }
+  console.log(`Images: ${images}`)
+}
+
+
+export async function deletedUnsavedExperiments() {
   const labbook = await loadLabBook();
   const experiments = [];
   for (const experiment of labbook.experiments) {
+    if (labbook.unsaved.includes(experiment.id)) {
+      await deleteExperiment(experiment.id);
+      labbook.unsaved = labbook.unsaved.filter((element)=>{return element !== experiment.id});
+      continue;
+    }
     experiments.push(experiment);
   }
-  return experiments;
+  labbook.experiments = experiments;
+  await storeLabBook(labbook);
+}
+
+
+export async function getExperiments() {
+  return (await loadLabBook()).experiments;
 }
 
 
@@ -27,6 +59,7 @@ export async function createExperiment() {
     result: null
   };
   labbook.experiments.push(experiment);
+  labbook.unsaved.push(experiment.id);
   await storeLabBook(labbook);
   return experiment.id;
 }
@@ -38,7 +71,13 @@ export async function getExperiment(id: number) {
 }
 
 
-export async function updateExperiment(updates: Experiment) {
+export async function isUnsavedExperiment(id: number) {
+  const labbook = await loadLabBook();
+  return labbook.unsaved.includes(id);
+}
+
+
+export async function saveExperiment(updates: Experiment) {
   const labbook = await loadLabBook();
   const experiment = await loadExperiment(labbook, updates.id);
   if (experiment === null) {
@@ -46,9 +85,11 @@ export async function updateExperiment(updates: Experiment) {
   }
   experiment.name = updates.name;
   experiment.type = updates.type;
+  experiment.date = updates.date;
   experiment.description = updates.description;
   experiment.notes = updates.notes;
   experiment.result = updates.result;
+  labbook.unsaved = labbook.unsaved.filter((element)=>{return element !== updates.id});
   await storeLabBook(labbook);
   return true;
 }
@@ -62,7 +103,7 @@ export async function deleteExperiment(id: number) {
     if (experiment.id === id) {
       deleted = true;
       for (const dataPoint of experiment.data) {
-        deleteDataPoint(id, dataPoint.id);
+        await deleteDataPoint(id, dataPoint.id);
       }
       continue;
     }
@@ -101,7 +142,7 @@ export async function getDataPoint(experimentId: number, id: number) {
 }
 
 
-export async function updateDataPoint(experimentId: number, updates: DataPoint) {
+export async function saveDataPoint(experimentId: number, updates: DataPoint) {
   const labbook = await loadLabBook();
   const dataPoint = await loadDataPoint(labbook, experimentId, updates.id);
   if (dataPoint === null) {
@@ -123,12 +164,12 @@ export async function deleteDataPoint(experimentId: number, id: number) {
   }
   const data = [];
   for (const dataPoint of experiment.data) {
-      if (dataPoint.id === id) {
-        deleted = true;
-        unstoreImage(dataPoint.image);
-        continue;
-      }
-      data.push(dataPoint);
+    if (dataPoint.id === id) {
+      deleted = true;
+      unstoreImage(dataPoint.image);
+      continue;
+    }
+    data.push(dataPoint);
   }
   if (deleted) {
     experiment.data = data;
@@ -138,9 +179,13 @@ export async function deleteDataPoint(experimentId: number, id: number) {
 }
 
 
+/* Internal */
+
+
 type LabBook = {
   count: number,
-  experiments: Experiment[]
+  experiments: Experiment[],
+  unsaved: number[]
 }
 
 
@@ -156,17 +201,18 @@ async function loadLabBook(): Promise<LabBook> {
   if (json == null) {
     const labbook: LabBook = {
       count: 0,
-      experiments: []
+      experiments: [],
+      unsaved: []
     };
     await storeLabBook(labbook);
     return labbook;
   }
-  return JSON.parse(json);
+  return unserialize(json);
 }
 
 
 async function storeLabBook(labbook: LabBook) {
-  await AsyncStorage.setItem('labbook', JSON.stringify(labbook));
+  await AsyncStorage.setItem('labbook', serialize(labbook));
   return;
 }
 
@@ -201,7 +247,7 @@ function storeImage(id: number, image: string) {
     images.create();
   }
   const tmp = new File(image);
-  const prs = new File(images, `${id}${tmp}`);
+  const prs = new File(images, `${id}${tmp.extension}`);
   tmp.copy(prs);
   return prs.uri;
 }
