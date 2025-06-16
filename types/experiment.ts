@@ -1,4 +1,4 @@
-import { Concentration, DataPoint } from '@/types/data';
+import { Concentration, DataPoint } from "@/types/data";
 
 
 export type Experiment = {
@@ -13,4 +13,4 @@ export type Experiment = {
 }
 
 
-export type ExperimentType = 'Ammonia' | 'IgG'
+export type ExperimentType = "Ammonia" | "IgG"
