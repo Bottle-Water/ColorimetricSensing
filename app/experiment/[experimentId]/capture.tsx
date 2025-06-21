@@ -26,6 +26,8 @@ export default function CaptureScreen() {
 
 
   const [imageURI, setImageURI] = useState("");
+  const [isFilled, setIsFilled] = useState(false);
+
 
 
   useFocusEffect(
@@ -104,9 +106,12 @@ export default function CaptureScreen() {
 
   const nextTorchState = torchState === 'on' ? 'off' : 'on';
 
+  // outline guide
+
 
   return (
     <>
+    
 
       <View style={styles.header}>
         <Button icon={faArrowLeft} margin={10} onPress={()=>router.back()} />
@@ -114,29 +119,31 @@ export default function CaptureScreen() {
         <Button icon={faQuestion} margin={10} onPress={help_} />
       </View>
 
-
-      {imageURI?
-
+    {imageURI ? (
       <Image
-        source={{
-          uri: imageURI
-        }}
+        source={{ uri: imageURI }}
         style={styles.image}
       />
+    ) : (
+      <View style={{ flex: 1 }}>
+        <Camera
+          style={StyleSheet.absoluteFill}
+          ref={cameraRef}
+          device={device}
+          isActive={true}
+          photo={true}
+          {...(device.hasTorch && { torch: torchState })}
+          onInitialized={() => { Alert.alert('Camera is Ready!'); }}
+        />
 
-      :
-
-      <Camera
-        style={styles.camera}
-        ref={cameraRef}
-        device={device}
-        isActive={true}
-        photo={true}
-        {...(device.hasTorch && { torch: torchState })}
-        onInitialized={() => {Alert.alert('Camera is Ready!');}}
-      />
-
-      }
+        <View
+          style={[
+            styles.overlayBox,
+            { borderColor: isFilled ? 'limegreen' : 'red' }
+          ]}
+        />
+      </View>
+    )}
 
 
       <View style={styles.actionbar}>
@@ -177,6 +184,15 @@ export default function CaptureScreen() {
 
 
 const styles = StyleSheet.create({
+  overlayBox: {
+  position: 'absolute',
+  top: '35%',
+  left: '25%',
+  width: '50%',
+  height: '30%',
+  borderWidth: 3,
+  borderRadius: 8,
+  },
   dialog: {
     flex: 1,
     justifyContent: 'center',
