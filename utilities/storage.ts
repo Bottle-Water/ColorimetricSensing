@@ -1,7 +1,7 @@
 import { DataPoint } from "@/types/data";
 import { Experiment } from "@/types/experiment";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Directory, File, Paths } from "expo-file-system/next";
+import * as FileSystem from "expo-file-system";
 
 
 export function serialize(object: any) {
@@ -17,11 +17,14 @@ export function unserialize(object: any) {
 export async function debugStorage() {
   const labbook = await loadLabBook();
   console.log(`Lab Book: ${serialize(labbook)}`);
-  const images = [];
-  for (const image of (new Directory(Paths.document, "images")).list()) {
-    images.push(image.name);
+  const imagesUri = FileSystem.documentDirectory + "images/";
+  const exists = await FileSystem.getInfoAsync(imagesUri).then(info => info.exists).catch(() => false);
+  if (!exists) {
+    console.log("Images directory doesn't exist :(");
+    return;
   }
-  console.log(`Images: ${images}`)
+  const images = await FileSystem.readDirectoryAsync(imagesUri);
+  console.log(`Images: ${images}`);
 }
 
 
@@ -124,9 +127,10 @@ export async function createDataPoint(experimentId: number, image: string) {
     return null;
   }
   const id = nextCount(labbook);
+  const storedImage = await storeImage(id, image);
   const dataPoint: DataPoint = {
     id: id,
-    image: storeImage(id, image),
+    image: storedImage,
     spots: [],
     concentration: null
   };
@@ -241,22 +245,21 @@ async function loadDataPoint(labbook: LabBook, experimentId: number, id: number)
 }
 
 
-function storeImage(id: number, image: string) {
-  const images = new Directory(Paths.document, "images");
-  if (!images.exists) {
-    images.create();
+async function storeImage(id: number, image: string) {
+  const imagesUri = FileSystem.documentDirectory + "images/";
+  const exists = await FileSystem.getInfoAsync(imagesUri).then(info => info.exists).catch(() => false);
+  if (!exists) {
+    await FileSystem.makeDirectoryAsync(imagesUri, { intermediates: true });
   }
-  const tmp = new File(image);
-  const prs = new File(images, `${id}${tmp.extension}`);
-  tmp.copy(prs);
-  return prs.uri;
+  const extension = image.substring(image.lastIndexOf("."));
+  const newPath = imagesUri + id + extension;
+  await FileSystem.copyAsync({ from: image, to: newPath });
+  return newPath;
 }
 
-
-function unstoreImage(image: string) {
-  const file = new File(image);
-  if (file.exists) {
-    file.delete();
+async function unstoreImage(image: string) {
+  const exists = await FileSystem.getInfoAsync(image).then(info => info.exists).catch(() => false);
+  if (exists) {
+    await FileSystem.deleteAsync(image);
   }
-  return;
 }
