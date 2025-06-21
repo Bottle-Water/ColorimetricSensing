@@ -1,0 +1,491 @@
+import { Button } from "@/components/button";
+import { Visualization } from "@/components/visualization";
+import { DataPoint } from "@/types/data";
+import { Experiment } from "@/types/experiment";
+import { deleteDataPoint, deleteExperiment, getExperiment, isUnsavedExperiment, saveExperiment, serialize } from "@/utilities/storage";
+import { faImage, faPaperPlane, faSave } from "@fortawesome/free-regular-svg-icons";
+import { faArrowLeft, faPenToSquare, faQuestion, faTrash, faXmark } from "@fortawesome/free-solid-svg-icons";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import { useCallback, useState } from "react";
+import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import DateTimePickerModal from "react-native-modal-datetime-picker";
+
+
+export default function ExperimentScreen() {
+
+
+  const router = useRouter();
+  const {experimentId} = useLocalSearchParams<{experimentId:string}>();
+
+
+  const [newMode, setNewMode] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
+
+
+  const [experiment, setExperiment] = useState<Experiment>();
+
+
+  const [currentNameValue, setCurrentNameValue] = useState("");
+  const [currentDateValue, setCurrentDateValue] = useState("");
+  const [currentDescriptionValue, setCurrentDescriptionValue] = useState("");
+  const [currentNotesValue, setCurrentNotesValue] = useState("");
+
+
+  const [dataMarkedDeleted, setDataMarkedDeleted] = useState<number[]>([]);
+
+
+  const [firstRender, setFirstRender] = useState(true);
+  useFocusEffect(
+    useCallback(() => {
+      const fun = async () => {
+
+
+        // Need to fetch experiment everytime screen
+        // is focused because data may have changed.
+        console.log(`Experiment ${experimentId} in focus.`);
+        const experiment = await getExperiment(parseInt(experimentId));
+        if (!experiment) {
+          Alert.alert(`Experiment ${experimentId} was not found.`);
+          router.back();
+          return;
+        }
+        setExperiment(experiment);
+        console.log(`Experiment: ${serialize(experiment)}`);
+
+
+        if (await isUnsavedExperiment(experiment.id)) {
+          setNewMode(true);
+        }
+
+
+        // Don't know a better way. Only want current
+        // values to be set once at the beginning.
+        // After that only during save and revert.
+        if (firstRender) {
+          setFirstRender(false);
+          setCurrentValues(experiment);
+        }
+      }
+      fun();
+      return () => {
+        console.log(`Experiment ${experimentId} out of focus.`);
+      };
+    }, [router, experimentId, firstRender])
+  );
+
+
+  const setCurrentValues = (experiment: Experiment) => {
+    setCurrentNameValue(experiment.name);
+    setCurrentDateValue(experiment.date);
+    setCurrentDescriptionValue(experiment.description);
+    setCurrentNotesValue(experiment.notes);
+  }
+
+
+  if (!experiment) {
+    return <View></View>
+  }
+
+
+  const help_ = () => { /* TODO */ };
+  const export_ = () => { /* TODO */ };
+
+
+  const save_ = async () => {
+
+    let success = true;
+
+    for (const dataPoint of experiment.data) {
+      if (dataMarkedDeleted.includes(dataPoint.id)) {
+        success &&= await deleteDataPoint(experiment.id, dataPoint.id);
+      }
+    }
+
+    // Need refreshed experiment
+    // after deleting data points.
+    let newExperiment = await getExperiment(parseInt(experimentId));
+    if (!newExperiment) {
+      Alert.alert(`Experiment ${experimentId} was not found.`);
+      router.back();
+      return;
+    }
+
+    newExperiment = {
+      ...newExperiment,
+      name: currentNameValue,
+      date: currentDateValue,
+      description: currentDescriptionValue,
+      notes: currentNotesValue
+    };
+    success &&= await saveExperiment(newExperiment)
+
+    if (!success) {
+      Alert.alert("Save was unsuccessful.");
+      return;
+    }
+
+    setNewMode(false);
+    setExperiment(newExperiment);
+    setCurrentValues(newExperiment);
+    setDataMarkedDeleted([]);
+    console.log(`Experiment: ${serialize(experiment)}`);
+  };
+
+
+  const delete_ = async () => {
+    if (!await deleteExperiment(experiment.id)) {
+      Alert.alert("Delete was unsuccessful.");
+    }
+    router.back();
+  };
+
+
+  const mark_ = async (dataPoint: DataPoint) => {
+    let newDataMarkedDeleted = [...dataMarkedDeleted];
+    if (dataMarkedDeleted.includes(dataPoint.id)) {
+      newDataMarkedDeleted = dataMarkedDeleted.filter((element)=>{return element !== dataPoint.id});
+    } else {
+      newDataMarkedDeleted.push(dataPoint.id);
+    }
+    setDataMarkedDeleted(newDataMarkedDeleted);
+    console.log(`Data Marked Deleted: ${newDataMarkedDeleted}`);
+  }
+
+
+  const baseInputStyle = editMode?styles.activebox:styles.inactivebox;
+
+  const isNameModified = currentNameValue !== experiment.name;
+  const nameInputStyle = newMode||isNameModified?styles.modifiedbox:baseInputStyle;
+
+  const isDateModified = currentDateValue !== experiment.date;
+  const dateInputStyle = newMode||isDateModified?styles.modifiedbox:baseInputStyle;
+
+  const isDescriptionModified = currentDescriptionValue !== experiment.description;
+  const descriptionInputStyle = newMode||isDescriptionModified?styles.modifiedbox:baseInputStyle;
+
+  const isNotesModified = currentNotesValue !== experiment.notes;
+  const notesInputStyle = newMode||isNotesModified?styles.modifiedbox:baseInputStyle;
+
+  const isModified = isNameModified || isDateModified || isDescriptionModified || isNotesModified || dataMarkedDeleted.length > 0;
+
+
+  return (
+    <>
+
+
+      <View style={styles.header}>
+        <Button
+          icon={faArrowLeft}
+          onPress={()=>router.back()}
+          margin={10}
+        />
+        <Text style={styles.title}>Experiment</Text>
+        <Button
+          icon={faQuestion}
+          onPress={help_}
+          margin={10}
+        />
+      </View>
+
+
+      <ScrollView style={styles.content}>
+
+
+        <View style={styles.field}>
+          <Text style={styles.label}>Name:</Text>
+          <TextInput
+            defaultValue={currentNameValue}
+            editable={newMode||editMode}
+            onEndEditing={(event)=>setCurrentNameValue(event.nativeEvent.text)}
+            style={nameInputStyle}
+          />
+        </View>
+
+
+        <View style={styles.splitpanel}>
+          <View style={styles.splitpanelleft}>
+
+
+            <View style={styles.field}>
+              <Text style={styles.label}>Type:</Text>
+              <Text style={styles.inactivebox}>{experiment.type}</Text>
+            </View>
+
+
+            <View style={styles.field}>
+              <Text style={styles.label}>Date:</Text>
+              <Pressable
+                disabled={!newMode&&!editMode}
+                onPress={()=>setDatePickerVisibility(true)}
+              >
+                <Text style={dateInputStyle}>{new Date(currentDateValue).toDateString()}</Text>
+              </Pressable>
+              <DateTimePickerModal
+                date={new Date(currentDateValue)}
+                isVisible={isDatePickerVisible}
+                mode="date"
+                onCancel={()=>setDatePickerVisibility(false)}
+                onConfirm={(date: Date) => {
+                  setCurrentDateValue(date.toISOString());
+                  setDatePickerVisibility(false);
+                }}
+              />
+            </View>
+
+
+          </View>
+          <View style={styles.splitpanelright}>
+
+
+            <Visualization experiment={experiment} />
+
+
+          </View>
+        </View>
+
+
+        <View style={styles.datapanel}>
+          <ScrollView style={styles.images} horizontal>
+
+
+            {experiment.data.map((dataPoint) => (
+            <Pressable
+              key={dataPoint.id}
+              onLongPress={newMode||editMode?()=>mark_(dataPoint):()=>{}}
+              onPress={()=>router.navigate(`/experiment/${experimentId}/canvas/${dataPoint.id}`)}
+            >
+              <Image
+                source={{
+                  uri: dataPoint.image
+                }}
+                style={
+                  (newMode||editMode)&&dataMarkedDeleted.includes(dataPoint.id)?
+                  {...styles.thumbnail,...styles.deleted}:
+                  styles.thumbnail
+                }
+              />
+            </Pressable>
+            ))}
+
+            {experiment.data.length === 0 &&
+            <Text style={styles.label}>No Data...</Text>
+            }
+
+
+          </ScrollView>
+
+
+          <Button
+            icon={faImage}
+            onPress={()=>router.navigate(`/experiment/${experiment.id}/capture`)}
+            margin={10}
+          />
+
+
+        </View>
+
+
+        <View style={styles.field}>
+          <Text style={styles.label}>Description:</Text>
+          <TextInput
+            defaultValue={currentDescriptionValue}
+            editable={newMode||editMode}
+            multiline
+            onEndEditing={(event)=>setCurrentDescriptionValue(event.nativeEvent.text)}
+            style={descriptionInputStyle}
+          />
+        </View>
+
+
+        <View style={styles.field}>
+          <Text style={styles.label}>Notes:</Text>
+          <TextInput 
+            defaultValue={currentNotesValue}
+            editable={newMode||editMode}
+            multiline
+            onEndEditing={(event)=>setCurrentNotesValue(event.nativeEvent.text)}
+            style={notesInputStyle}
+          />
+        </View>
+
+
+      </ScrollView>
+
+
+      <View style={styles.actionbar}>
+        <View style={styles.actionbarleftpanel}>
+
+
+          {newMode||editMode?
+          <Button
+            icon={faTrash}
+            backgroundColor="red"
+            margin={10}
+            onPress={delete_}
+          />
+          :
+          <Button
+            icon={faPaperPlane}
+            margin={10}
+            onPress={export_}
+          />
+          }
+
+
+        </View>
+        <View style={styles.actionbarrightpanel}>
+
+
+          {newMode?
+
+          <Button
+            icon={faSave}
+            backgroundColor="green"
+            margin={10}
+            onPress={save_}
+          />
+
+          :editMode?
+
+          <>
+          <Button
+            icon={faSave}
+            backgroundColor={isModified?"green":"lightgray"}
+            margin={10}
+            onPress={isModified?save_:()=>{}}
+          />
+          <Button
+            icon={faXmark}
+            margin={10}
+            onPress={() => {
+              setEditMode(false);
+              setCurrentValues(experiment);
+            }}
+          />
+          </>
+
+          :
+
+          <Button
+            icon={faPenToSquare}
+            margin={10}
+            onPress={()=>setEditMode(true)}
+          />
+
+          }
+
+
+        </View>
+      </View>
+
+
+    </>
+  );
+}
+
+
+const styles = StyleSheet.create({
+  header: {
+    alignItems: "center",
+    backgroundColor: "#A9A9A9",
+    borderBottomColor: "black",
+    borderBottomWidth: 3,
+    flexDirection: "row",
+    justifyContent: "space-between"
+  },
+  title: {
+    color:"white",
+    fontSize: 25,
+    fontWeight: "bold",
+  },
+  content: {
+    margin: 10
+  },
+  name: {
+    backgroundColor: "#f0f0f0",
+    flex: 1,
+    marginBottom: 10
+  },
+  splitpanel: {
+    flexDirection: "row",
+    margin: 10
+  },
+  splitpanelleft: {
+    flex: 1
+  },
+  splitpanelright: {
+    flex: 1,
+    margin: 10
+  },
+  datapanel: {
+    backgroundColor: "lightgray",
+    borderColor: "gray",
+    borderRadius: 5,
+    borderStyle: "dashed",
+    borderWidth: 1,
+    flexDirection: "row",
+    margin: 10
+  },
+  images: {},
+  thumbnail: {
+    borderRadius: 5,
+    height: 60,
+    margin: 10,
+    width: 60
+  },
+  deleted: {
+    borderColor: "red",
+    borderWidth: 2
+  },
+  field: {
+    margin: 10
+  },
+  label: {
+    fontStyle: "italic",
+    fontWeight: "light",
+    marginBottom: 5
+  },
+  modifiedbox: {
+    backgroundColor: "lightblue",
+    borderColor: "blue",
+    borderRadius: 5,
+    borderStyle: "solid",
+    borderWidth: 3,
+    padding: 5
+  },
+  activebox: {
+    backgroundColor: "lightblue",
+    borderColor: "gray",
+    borderRadius: 5,
+    borderStyle: "dashed",
+    borderWidth: 1,
+    padding: 5
+  },
+  inactivebox: {
+    backgroundColor: "lightgray",
+    borderColor: "gray",
+    borderRadius: 5,
+    borderStyle: "dashed",
+    borderWidth: 1,
+    padding: 5
+  },
+  actionbar: {
+    alignItems: "center",
+    backgroundColor: "#A9A9A9",
+    borderTopColor: "black",
+    borderTopWidth: 3,
+    flexDirection: "row",
+    justifyContent: "space-between"
+  },
+  actionbarleftpanel: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "flex-start"
+  },
+  actionbarrightpanel: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "flex-end"
+  }
+});
