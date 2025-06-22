@@ -232,6 +232,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   header: {
+    zIndex: 10,
     alignItems: "center",
     backgroundColor: "#A9A9A9",
     flexDirection: "row",
