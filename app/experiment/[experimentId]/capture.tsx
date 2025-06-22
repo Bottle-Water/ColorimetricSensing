@@ -7,6 +7,8 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useRef, useState } from 'react';
 import { Alert, Image, StyleSheet, Text, View } from 'react-native';
 import { Camera, useCameraDevice, useCameraPermission } from 'react-native-vision-camera';
+import ImageZoom from 'react-native-image-pan-zoom';
+import { Dimensions } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 
 
@@ -29,6 +31,12 @@ export default function CaptureScreen() {
   const [imageURI, setImageURI] = useState("");
   const [isFilled, setIsFilled] = useState(false);
 
+  // for cropping
+  const windowWidth = Dimensions.get('window').width;
+  const windowHeight = Dimensions.get('window').height;
+  const headerHeight = 60;
+  const actionbarHeight = 60; 
+  const usableHeight = windowHeight - headerHeight - actionbarHeight;
 
 
   useFocusEffect(
@@ -97,8 +105,9 @@ export default function CaptureScreen() {
 
   const capture = async () => {
     const image = await cameraRef.current?.takePhoto({flash: 'off'});
-    if (image) {
-      setImageURI(image.path);
+    if (image?.path) {
+      const uri = `file://${image.path}`; // prepend file://
+      setImageURI(uri);
     }
   };
 
@@ -129,10 +138,39 @@ export default function CaptureScreen() {
       </View>
 
     {imageURI ? (
-      <Image
-        source={{ uri: imageURI }}
-        style={styles.image}
-      />
+      <View style={{ flex: 1 }}>
+      <ImageZoom
+        cropWidth={windowWidth}
+        cropHeight={usableHeight}
+        imageWidth={windowWidth}
+        imageHeight={usableHeight}
+        minScale={1}
+        maxScale={4}
+        enableCenterFocus={false}
+        useNativeDriver={true}
+      >
+        <Image
+          source={{ uri: imageURI }}
+          style={{
+            width: windowWidth,
+            height: usableHeight,
+            resizeMode: 'contain',
+          }}
+        />
+      </ImageZoom>
+
+
+        {/* overlay box */}
+        <View pointerEvents="none"
+          style={[
+            styles.overlayBox,
+            { borderColor: isFilled ? 'lime' : 'lightgrey' }
+          ]}
+        />
+
+        {/* overlay box border (for accessibility) */}
+        <View style={styles.overlayBorder} />
+      </View>
     ) : (
       <View style={{ flex: 1 }}>
         <Camera
@@ -211,21 +249,23 @@ const styles = StyleSheet.create({
   top: '12.5%',
   left: '10%',
   width: '80%',
-  height: '65%',
+  aspectRatio: 3 / 4,
   borderWidth: 7,
   borderRadius: 8,
   borderColor: 'black',
+  pointerEvents: 'none',
   },
   overlayBorder: {
   position: 'absolute',
   top: '12.5%',
   left: '10%',
   width: '80%',
-  height: '65%',
+  aspectRatio: 3 / 4,
   opacity: 0.7,
   borderWidth: 3,
   borderColor: 'black',
   borderRadius: 8,
+  pointerEvents: 'none',
   },
   dialog: {
     flex: 1,
