@@ -145,13 +145,20 @@ export default function CaptureScreen() {
           onInitialized={() => { Alert.alert('Camera is Ready!'); }}
         />
 
+        {/*overlay box */}
         <View
           style={[
             styles.overlayBox,
-            { borderColor: isFilled ? 'limegreen' : 'red' }
+            { borderColor: isFilled ? 'lime' : 'lightgrey' }
           ]}
-        />
+        /> 
+
+        {/*overlay box border (for accessibility) */}
+        <View style={styles.overlayBorder} />
+
       </View>
+
+      
     )}
 
 
@@ -199,11 +206,25 @@ export default function CaptureScreen() {
 const styles = StyleSheet.create({
   overlayBox: {
   position: 'absolute',
-  top: '35%',
-  left: '25%',
-  width: '50%',
-  height: '30%',
+  color: 'white',
+  opacity: 0.7,
+  top: '12.5%',
+  left: '10%',
+  width: '80%',
+  height: '65%',
+  borderWidth: 7,
+  borderRadius: 8,
+  borderColor: 'black',
+  },
+  overlayBorder: {
+  position: 'absolute',
+  top: '12.5%',
+  left: '10%',
+  width: '80%',
+  height: '65%',
+  opacity: 0.7,
   borderWidth: 3,
+  borderColor: 'black',
   borderRadius: 8,
   },
   dialog: {
