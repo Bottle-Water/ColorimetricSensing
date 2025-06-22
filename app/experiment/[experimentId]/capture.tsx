@@ -1,12 +1,13 @@
 import { Button } from "@/components/button";
 import { Experiment } from "@/types/experiment";
 import { createDataPoint, getExperiment, serialize } from "@/utilities/storage";
-import { faLightbulb } from "@fortawesome/free-regular-svg-icons";
+import { faFileImage, faLightbulb } from "@fortawesome/free-regular-svg-icons";
 import { faArrowLeft, faCamera, faCheck, faQuestion, faXmark } from "@fortawesome/free-solid-svg-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useRef, useState } from 'react';
 import { Alert, Image, StyleSheet, Text, View } from 'react-native';
 import { Camera, useCameraDevice, useCameraPermission } from 'react-native-vision-camera';
+import * as ImagePicker from 'expo-image-picker';
 
 
 export default function CaptureScreen() {
@@ -86,6 +87,14 @@ export default function CaptureScreen() {
   const help_ = () => { /* TODO */ };
 
 
+  const pick = async () => {
+    const image = await ImagePicker.launchImageLibraryAsync();
+    if (image.assets) {
+      setImageURI(image.assets[0].uri);
+    }
+  };
+
+
   const capture = async () => {
     const image = await cameraRef.current?.takePhoto({flash: 'off'});
     if (image) {
@@ -148,7 +157,11 @@ export default function CaptureScreen() {
 
       <View style={styles.actionbar}>
 
-        <View style={styles.actionbarleftpanel}></View>
+        <View style={styles.actionbarleftpanel}>
+          {!imageURI &&
+          <Button icon={faFileImage} margin={10} onPress={pick} />
+          }
+        </View>
 
         <View style={styles.actionbarcenterpanel}>
           {imageURI?
