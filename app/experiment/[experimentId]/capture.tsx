@@ -31,6 +31,7 @@ export default function CaptureScreen() {
 
   const [imageURI, setImageURI] = useState("");
   const [isFilled, setIsFilled] = useState(false);
+  const [isImageFromPicker, setIsImageFromPicker] = useState(false); // Track if image came from picker
 
   // For cropping
   const windowWidth = Dimensions.get('window').width;
@@ -103,12 +104,31 @@ export default function CaptureScreen() {
 
 
   const pick = async () => {
-    const image = await ImagePicker.launchImageLibraryAsync();
-    if (image.assets) {
-      setImageURI(image.assets[0].uri);
-      Image.getSize(image.assets[0].uri, (width, height) => {
-        setImageDimensions({ width, height });
-      });
+    const image = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [3, 4], // overlay/ test strip ratio
+      quality: 1,
+      allowsMultipleSelection: false,
+    });
+    
+    if (image.assets && image.assets[0]) {
+      const selectedImage = image.assets[0];
+      
+      try {
+        // save the cropped image and navigate straight to location picking
+        const dataId = await createDataPoint(experiment!.id, selectedImage.uri);
+        if (!dataId) {
+          Alert.alert("Save was unsuccessful.");
+          return;
+        }
+        
+        console.log("Picked image saved directly:", selectedImage.uri);
+        router.replace(`/experiment/${experimentId}/canvas/${dataId}`);
+      } catch (error) {
+        console.error("Error saving picked image:", error);
+        Alert.alert("Error", "Failed to save the image.");
+      }
     }
   };
 
@@ -118,6 +138,7 @@ export default function CaptureScreen() {
     if (image?.path) {
       const uri = `file://${image.path}`; // prepend file://
       setImageURI(uri);
+      setIsImageFromPicker(false); // Mark as camera image
       Image.getSize(uri, (width, height) => {
         setImageDimensions({ width, height });
       });
@@ -129,64 +150,75 @@ export default function CaptureScreen() {
     if (!imageURI || !imageDimensions) return;
 
     try {
-      const containerAspectRatio = previewWidth / previewHeight;
-      const imageAspectRatio = imageDimensions.width / imageDimensions.height;
+      let finalImageUri = imageURI;
 
-      let displayedImageWidth, displayedImageHeight;
-      let offsetX = 0, offsetY = 0;
+      // Only apply auto-cropping for camera images, not picked images
+      if (!isImageFromPicker) {
+        // Auto-crop camera images to the overlay area
+        const containerAspectRatio = previewWidth / previewHeight;
+        const imageAspectRatio = imageDimensions.width / imageDimensions.height;
 
-      if (imageAspectRatio > containerAspectRatio) {
-        // crop horizontally, shrink to fit height
-        displayedImageHeight = imageDimensions.height;
-        displayedImageWidth = imageDimensions.height * containerAspectRatio;
-        offsetX = (imageDimensions.width - displayedImageWidth) / 2;
+        let displayedImageWidth, displayedImageHeight;
+        let offsetX = 0, offsetY = 0;
+
+        if (imageAspectRatio > containerAspectRatio) {
+          // crop horizontally, shrink to fit height
+          displayedImageHeight = imageDimensions.height;
+          displayedImageWidth = imageDimensions.height * containerAspectRatio;
+          offsetX = (imageDimensions.width - displayedImageWidth) / 2;
+        } else {
+          // crop vertically, shrink to fit width
+          displayedImageWidth = imageDimensions.width;
+          displayedImageHeight = imageDimensions.width / containerAspectRatio;
+          offsetY = (imageDimensions.height - displayedImageHeight) / 2;
+        }
+
+        // Overlay size
+        const overlayLeftPercent = 0.10; 
+        const overlayTopPercent = 0.125; 
+        const overlayWidthPercent = 0.80; 
+
+        // find overlay dimensions in the preview container
+        const overlayWidthInContainer = previewWidth * overlayWidthPercent;
+        const overlayHeightInContainer = overlayWidthInContainer * (4 / 3); // 4/3 ratio of test strip
+        const overlayLeftInContainer = previewWidth * overlayLeftPercent;
+        const overlayTopInContainer = previewHeight * overlayTopPercent;
+
+        // map overlay position to image coordinates
+        const cropX = offsetX + (overlayLeftInContainer / previewWidth) * displayedImageWidth;
+        const cropY = offsetY + (overlayTopInContainer / previewHeight) * displayedImageHeight;
+        const cropWidth = (overlayWidthInContainer / previewWidth) * displayedImageWidth;
+        const cropHeight = (overlayHeightInContainer / previewHeight) * displayedImageHeight;
+
+        // Clamp to bounds
+        const finalCropX = Math.max(0, Math.min(cropX, imageDimensions.width - cropWidth));
+        const finalCropY = Math.max(0, Math.min(cropY, imageDimensions.height - cropHeight));
+        const finalCropWidth = Math.min(cropWidth, imageDimensions.width - finalCropX);
+        const finalCropHeight = Math.min(cropHeight, imageDimensions.height - finalCropY);
+
+        const croppedResult = await ImageManipulator.manipulateAsync(
+          imageURI,
+          [
+            {
+              crop: {
+                originX: finalCropX,
+                originY: finalCropY,
+                width: finalCropWidth,
+                height: finalCropHeight,
+              },
+            },
+          ],
+          { compress: 1, format: ImageManipulator.SaveFormat.JPEG }
+        );
+
+        finalImageUri = croppedResult.uri;
+        console.log("using auto-cropped camera image:", finalImageUri);
       } else {
-        // crop vertically, shrink to fit width
-        displayedImageWidth = imageDimensions.width;
-        displayedImageHeight = imageDimensions.width / containerAspectRatio;
-        offsetY = (imageDimensions.height - displayedImageHeight) / 2;
+        console.log("using picked image:", finalImageUri);
       }
 
-      // Overlay size
-      const overlayLeftPercent = 0.10; 
-      const overlayTopPercent = 0.125; 
-      const overlayWidthPercent = 0.80; 
-
-      // find overlay dimensions in the preview container
-      const overlayWidthInContainer = previewWidth * overlayWidthPercent;
-      const overlayHeightInContainer = overlayWidthInContainer * (4 / 3); // 4/3 ratio of test strip
-      const overlayLeftInContainer = previewWidth * overlayLeftPercent;
-      const overlayTopInContainer = previewHeight * overlayTopPercent;
-
-      // map overlay position to image coordinates
-      const cropX = offsetX + (overlayLeftInContainer / previewWidth) * displayedImageWidth;
-      const cropY = offsetY + (overlayTopInContainer / previewHeight) * displayedImageHeight;
-      const cropWidth = (overlayWidthInContainer / previewWidth) * displayedImageWidth;
-      const cropHeight = (overlayHeightInContainer / previewHeight) * displayedImageHeight;
-
-      // Clamp to bounds
-      const finalCropX = Math.max(0, Math.min(cropX, imageDimensions.width - cropWidth));
-      const finalCropY = Math.max(0, Math.min(cropY, imageDimensions.height - cropHeight));
-      const finalCropWidth = Math.min(cropWidth, imageDimensions.width - finalCropX);
-      const finalCropHeight = Math.min(cropHeight, imageDimensions.height - finalCropY);
-
-      const croppedResult = await ImageManipulator.manipulateAsync(
-        imageURI,
-        [
-          {
-            crop: {
-              originX: finalCropX,
-              originY: finalCropY,
-              width: finalCropWidth,
-              height: finalCropHeight,
-            },
-          },
-        ],
-        { compress: 1, format: ImageManipulator.SaveFormat.JPEG }
-      );
-
-
-      const dataId = await createDataPoint(experiment!.id, croppedResult.uri);
+      // Save the final image
+      const dataId = await createDataPoint(experiment!.id, finalImageUri);
       if (!dataId) {
         Alert.alert("Confirm was unsuccessful.");
         return;
@@ -326,7 +358,7 @@ export default function CaptureScreen() {
             backgroundColor="red"
             icon={faXmark}
             margin={10}
-            onPress={()=>setImageURI("")}
+            onPress={()=>{setImageURI(""); setIsImageFromPicker(false);}}
           />
           </>
           :
