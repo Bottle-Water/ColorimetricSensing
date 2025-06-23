@@ -7,9 +7,10 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useRef, useState } from 'react';
 import { Alert, Image, StyleSheet, Text, View } from 'react-native';
 import { Camera, useCameraDevice, useCameraPermission } from 'react-native-vision-camera';
-import ImageZoom from 'react-native-image-pan-zoom';
+
 import { Dimensions } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 
 
 export default function CaptureScreen() {
@@ -31,13 +32,19 @@ export default function CaptureScreen() {
   const [imageURI, setImageURI] = useState("");
   const [isFilled, setIsFilled] = useState(false);
 
-  // for cropping
+  // For cropping
   const windowWidth = Dimensions.get('window').width;
   const windowHeight = Dimensions.get('window').height;
   const headerHeight = 60;
   const actionbarHeight = 60; 
   const usableHeight = windowHeight - headerHeight - actionbarHeight;
+  const maxPreviewWidth = windowWidth * 0.95;
+  const maxPreviewHeight = usableHeight * 0.9;
+  // Camera size
+  const previewWidth = maxPreviewWidth;
+  const previewHeight = maxPreviewHeight;
 
+  const [imageDimensions, setImageDimensions] = useState<{width: number, height: number} | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -99,6 +106,9 @@ export default function CaptureScreen() {
     const image = await ImagePicker.launchImageLibraryAsync();
     if (image.assets) {
       setImageURI(image.assets[0].uri);
+      Image.getSize(image.assets[0].uri, (width, height) => {
+        setImageDimensions({ width, height });
+      });
     }
   };
 
@@ -108,23 +118,87 @@ export default function CaptureScreen() {
     if (image?.path) {
       const uri = `file://${image.path}`; // prepend file://
       setImageURI(uri);
+      Image.getSize(uri, (width, height) => {
+        setImageDimensions({ width, height });
+      });
     }
   };
 
 
   const confirm = async () => {
-    const dataId = await createDataPoint(experiment.id, imageURI);
-    if (!dataId) {
-      Alert.alert(`Confirm was unsuccessful.`);
-      return;
+    if (!imageURI || !imageDimensions) return;
+
+    try {
+      const containerAspectRatio = previewWidth / previewHeight;
+      const imageAspectRatio = imageDimensions.width / imageDimensions.height;
+
+      let displayedImageWidth, displayedImageHeight;
+      let offsetX = 0, offsetY = 0;
+
+      if (imageAspectRatio > containerAspectRatio) {
+        // crop horizontally, shrink to fit height
+        displayedImageHeight = imageDimensions.height;
+        displayedImageWidth = imageDimensions.height * containerAspectRatio;
+        offsetX = (imageDimensions.width - displayedImageWidth) / 2;
+      } else {
+        // crop vertically, shrink to fit width
+        displayedImageWidth = imageDimensions.width;
+        displayedImageHeight = imageDimensions.width / containerAspectRatio;
+        offsetY = (imageDimensions.height - displayedImageHeight) / 2;
+      }
+
+      // Overlay size
+      const overlayLeftPercent = 0.10; 
+      const overlayTopPercent = 0.125; 
+      const overlayWidthPercent = 0.80; 
+
+      // find overlay dimensions in the preview container
+      const overlayWidthInContainer = previewWidth * overlayWidthPercent;
+      const overlayHeightInContainer = overlayWidthInContainer * (4 / 3); // 4/3 ratio of test strip
+      const overlayLeftInContainer = previewWidth * overlayLeftPercent;
+      const overlayTopInContainer = previewHeight * overlayTopPercent;
+
+      // map overlay position to image coordinates
+      const cropX = offsetX + (overlayLeftInContainer / previewWidth) * displayedImageWidth;
+      const cropY = offsetY + (overlayTopInContainer / previewHeight) * displayedImageHeight;
+      const cropWidth = (overlayWidthInContainer / previewWidth) * displayedImageWidth;
+      const cropHeight = (overlayHeightInContainer / previewHeight) * displayedImageHeight;
+
+      // Clamp to bounds
+      const finalCropX = Math.max(0, Math.min(cropX, imageDimensions.width - cropWidth));
+      const finalCropY = Math.max(0, Math.min(cropY, imageDimensions.height - cropHeight));
+      const finalCropWidth = Math.min(cropWidth, imageDimensions.width - finalCropX);
+      const finalCropHeight = Math.min(cropHeight, imageDimensions.height - finalCropY);
+
+      const croppedResult = await ImageManipulator.manipulateAsync(
+        imageURI,
+        [
+          {
+            crop: {
+              originX: finalCropX,
+              originY: finalCropY,
+              width: finalCropWidth,
+              height: finalCropHeight,
+            },
+          },
+        ],
+        { compress: 1, format: ImageManipulator.SaveFormat.JPEG }
+      );
+
+
+      const dataId = await createDataPoint(experiment!.id, croppedResult.uri);
+      if (!dataId) {
+        Alert.alert("Confirm was unsuccessful.");
+        return;
+      }
+      router.replace(`/experiment/${experimentId}/canvas/${dataId}`);
+    } catch (e: any) {
+      console.error("Cropping error:", e);
     }
-    router.replace(`/experiment/${experimentId}/canvas/${dataId}`);
   };
 
 
   const nextTorchState = torchState === 'on' ? 'off' : 'on';
-
-  // outline guide
 
 
   return (
@@ -138,26 +212,33 @@ export default function CaptureScreen() {
       </View>
 
     {imageURI ? (
-      <View style={{ flex: 1 }}>
-      <ImageZoom
-        cropWidth={windowWidth}
-        cropHeight={usableHeight}
-        imageWidth={windowWidth}
-        imageHeight={usableHeight}
-        minScale={1}
-        maxScale={4}
-        enableCenterFocus={false}
-        useNativeDriver={true}
-      >
-        <Image
-          source={{ uri: imageURI }}
+      <View style={{ 
+        flex: 1, 
+        backgroundColor: '#A9A9A9',
+        justifyContent: 'center',
+        alignItems: 'center',
+      }}>
+        <View
           style={{
-            width: windowWidth,
-            height: usableHeight,
-            resizeMode: 'contain',
+            width: previewWidth,
+            height: previewHeight,
+            backgroundColor: '#A9A9A9',
+            borderRadius: 12,
+            overflow: 'hidden',
+            justifyContent: 'center',
+            alignItems: 'center',
           }}
-        />
-      </ImageZoom>
+        >
+
+            <Image
+              source={{ uri: imageURI }}
+              style={{
+                width: '100%',
+                height: '100%',
+                resizeMode: 'cover',
+              }}
+            />
+        </View>
 
 
         {/* overlay box */}
@@ -172,18 +253,42 @@ export default function CaptureScreen() {
         <View style={styles.overlayBorder} />
       </View>
     ) : (
-      <View style={{ flex: 1 }}>
-        <Camera
-          style={StyleSheet.absoluteFill}
-          ref={cameraRef}
-          device={device}
-          isActive={true}
-          photo={true}
-          {...(device.hasTorch && { torch: torchState })}
-          onInitialized={() => { Alert.alert('Camera is Ready!'); }}
-        />
-
-        {/*overlay box */}
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: '#A9A9A9',
+          justifyContent: 'center',
+          alignItems: 'center',
+          position: 'relative',
+        }}
+      >
+        <View
+          style={{
+            width: previewWidth,
+            height: previewHeight,
+            backgroundColor: '#A9A9A9',
+            borderRadius: 12,
+            overflow: 'hidden',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+        >
+          {device && hasPermission && (
+            <Camera
+              ref={cameraRef}
+              style={{
+                width: '100%',
+                height: '100%',
+              }}
+              device={device}
+              isActive={true}
+              photo={true}
+              {...(device.hasTorch && { torch: torchState })}
+              onInitialized={() => { Alert.alert('Camera is Ready!'); }}
+            />
+          )}
+        </View>
+        {/* Overlay box/border absolutely positioned (see overlayBox style) btw*/}
         <View
           style={[
             styles.overlayBox,
@@ -191,7 +296,7 @@ export default function CaptureScreen() {
           ]}
         /> 
 
-        {/*overlay box border (for accessibility) */}
+        {/* Overlay box border (for accessibility) */}
         <View style={styles.overlayBorder} />
 
       </View>
