@@ -5,12 +5,9 @@ import { faArrowLeft, faCheck, faQuestion, faWandMagicSparkles, faXmark } from "
 import { Canvas, Circle, Fill, Group, Image, useImage } from '@shopify/react-native-skia';
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { Alert, LayoutChangeEvent, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, { useAnimatedStyle, useDerivedValue, useSharedValue } from "react-native-reanimated";
-
-
-const radius = 10;
 
 
 export default function CanvasScreen() {
@@ -20,16 +17,7 @@ export default function CanvasScreen() {
   const {experimentId, dataId} = useLocalSearchParams<{experimentId:string, dataId:string}>();
 
 
-  const [canvasTopBound, setCanvasTopBound] = useState(0);
-  const [canvasLeftBound, setCanvasLeftBound] = useState(0);
-  const [canvasRightBound, setCanvasRightBound] = useState(0);
-  const [canvasBottomBound, setCanvasBottomBound] = useState(0);
-
-
-  // Holds the original coordinates.
   const [data, setData] = useState<null|DataPoint>(null);
-
-
   useFocusEffect(
     useCallback(() => {
 
@@ -54,47 +42,44 @@ export default function CanvasScreen() {
   );
 
 
-  const image = useImage(data?.image);
+  const canvasDimension = useSharedValue({width: 0, height: 0});
+  const softZoneSize = useSharedValue(80);
+  const spotRadius = useSharedValue(10);
+  const shiftSize = useSharedValue(5);
+  const zoomFactor = useSharedValue(0.025);
 
 
   const [selectedOverlayId, setSelectedOverlayId] = useState<number>();
-  const [selectedHardTopBound, setSelectedHardTopBound] = useState(0);
-  const [selectedSoftTopBound, setSelectedSoftTopBound] = useState(0);
-  const [selectedHardLeftBound, setSelectedHardLeftBound] = useState(0);
-  const [selectedSoftLeftBound, setSelectedSoftLeftBound] = useState(0);
-  const [selectedHardRightBound, setSelectedHardRightBound] = useState(0);
-  const [selectedSoftRightBound, setSelectedSoftRightBound] = useState(0);
-  const [selectedHardBottomBound, setSelectedHardBottomBound] = useState(0);
-  const [selectedSoftBottomBound, setSelectedSoftBottomBound] = useState(0);
 
-
-  const frameSize = useSharedValue(0);
-  const framePositionX = useSharedValue(0);
-  const framePositionY = useSharedValue(0);
-
-
-  // Location of image top-left corner in canvas
-  // pixels relative to canvas top-left corner.
-  const imageTranslateX = useSharedValue(0);
-  const imageTranslateY = useSharedValue(0);
-  // Number of canvas pixels that
-  // fit within an image pixel.
-  const imageScale = useSharedValue(0);
-  const imageTransform = useDerivedValue(() => {
-    return [
-      {translateX: imageTranslateX.value},
-      {translateY: imageTranslateY.value},
-      {scale: imageScale.value}
-    ]
-  });
-
-  // These are nessessary. Skia Circles only updates
-  // When individual shared values for x and y are given.
   const selectedOverlayX = useSharedValue(0);
   const selectedOverlayY = useSharedValue(0);
 
-  const style = useAnimatedStyle(() => {
-    // These positions are relative to the canvas.
+  const selectedBounds = useDerivedValue(() => {
+    // Pad the edges of the screen
+    // with an invisible border.
+    const radius = spotRadius.value;
+    const width = canvasDimension.value.width;
+    const height = canvasDimension.value.height;
+    const offset = softZoneSize.value + radius;
+    return {
+      hard: {
+        top: radius,
+        left: radius,
+        right: width - radius,
+        bottom: height - radius
+      },
+      soft: {
+        top: offset,
+        left: offset,
+        right: width - offset,
+        bottom: height - offset
+      }
+    }
+  });
+
+
+  const pointer = useAnimatedStyle(() => {
+    const radius = spotRadius.value;
     return {
       position: "absolute",
       top: -radius,
@@ -103,42 +88,67 @@ export default function CanvasScreen() {
       height: radius * 2,
       borderColor: "red",
       borderWidth: 2,
-      transform: [{ translateX: selectedOverlayX.value }, { translateY: selectedOverlayY.value }]
+      transform: [
+        {translateX: selectedOverlayX.value},
+        {translateY: selectedOverlayY.value}
+      ]
     }
   });
 
 
+  // Number of horizontal image pixels on canvas.
+  const frameSize = useSharedValue(20);
+  const minFrameSize = useSharedValue(20);
+  const maxFrameSize = useSharedValue(20);
+
+  const framePositionX = useSharedValue(0);
+  const framePositionY = useSharedValue(0);
+
+  // calculateFrameScale
+  // => canvasWidth / frameSize
+
+  // convertToCanvasPosition
+  // => (imagePosition + framePosition) * scale
+
+  // convertToImagePosition
+  // => canvasPosition / scale - framePosition
+
+  // Number of canvas pixels that
+  // fit within an image frame pixel.
+  const frameScale = useDerivedValue(() => {
+    return canvasDimension.value.width / frameSize.value;
+  });
+
+
+  const imageTransform = useDerivedValue(() => {
+    return [
+      {scale: frameScale.value},
+      {translateX: framePositionX.value},
+      {translateY: framePositionY.value}
+    ]
+  });
+
+
+  const image = useImage(data?.image);
   useEffect(() => {
     if (image) {
-      const canvasSize = canvasRightBound - canvasLeftBound;
-      frameSize.value = image.width();
-      imageScale.value = canvasSize / image.width();
+      const imageWidth = image.width();
+      frameSize.value = imageWidth;
+      maxFrameSize.value = imageWidth;
     }
-  });
+  }, [image, frameSize, maxFrameSize]);
 
 
   // Ensures the data point and image are
   // acquired before the canvas is rendered.
-  if (!data || !image) {
+  if (data === null
+    || image === null) {
     return <View></View>
   }
 
 
   console.log(`Data: ${serialize(data)}`);
   console.log(`Selected Spot: ${selectedOverlayId}`);
-
-
-  const onLayoutHandler = (event: LayoutChangeEvent) => {
-    const layout = event.nativeEvent.layout;
-    const x = layout.x;
-    const y = layout.y;
-    const width = layout.width;
-    const height = layout.height;
-    setCanvasTopBound(y);
-    setCanvasLeftBound(x);
-    setCanvasRightBound(x + width);
-    setCanvasBottomBound(y + height);
-  };
 
 
   const help_ = () => { /* TODO */ };
@@ -171,20 +181,9 @@ export default function CanvasScreen() {
     if (selected.length === 1) {
       const newSelectedSpot = selected[0];
       console.log(`Selected Spot: (${spotId}) ${newSelectedSpot}`);
-      // Pad the edges of the screen
-      // with an invisible border.
-      const border = 40;
-      const radius = 10;
-      setSelectedHardTopBound(canvasTopBound + radius);
-      setSelectedSoftTopBound(canvasTopBound + radius + border);
-      setSelectedHardLeftBound(canvasLeftBound + radius);
-      setSelectedSoftLeftBound(canvasLeftBound + radius + border);
-      setSelectedHardRightBound(canvasRightBound - radius);
-      setSelectedSoftRightBound(canvasRightBound - radius - border);
-      setSelectedHardBottomBound(canvasBottomBound - radius);
-      setSelectedSoftBottomBound(canvasBottomBound - radius - border);
-      selectedOverlayX.value = newSelectedSpot.area.x * imageScale.value + imageTranslateX.value;
-      selectedOverlayY.value = newSelectedSpot.area.y * imageScale.value + imageTranslateY.value;
+      const scale = frameScale.value;
+      selectedOverlayX.value = (newSelectedSpot.area.x + framePositionX.value) * scale;
+      selectedOverlayY.value = (newSelectedSpot.area.y + framePositionY.value) * scale;
       setSelectedOverlayId(spotId);
     }
   }
@@ -193,8 +192,16 @@ export default function CanvasScreen() {
   const save_ = (spotId: number) => {
 
     const newData = {...data};
-    newData.spots[spotId].area.x = (selectedOverlayX.value - imageTranslateX.value) / imageScale.value;
-    newData.spots[spotId].area.y = (selectedOverlayY.value - imageTranslateY.value) / imageScale.value;
+    //newData.spots[spotId].area.x = (selectedOverlayX.value - framePositionX.value) / frameScale.value;
+    //newData.spots[spotId].area.y = (selectedOverlayY.value - framePositionY.value) / frameScale.value;
+    const scale = frameScale.value;
+    console.log(`Frame Position (X, Y): (${framePositionX.value}, ${framePositionY.value})`);
+    console.log(`Frame Scale: ${scale}`);
+    console.log(`Overlay Position (X, Y): (${selectedOverlayX.value}, ${selectedOverlayY.value})`);
+    newData.spots[spotId].area.x = selectedOverlayX.value / scale - framePositionX.value;
+    newData.spots[spotId].area.y = selectedOverlayY.value / scale - framePositionY.value;
+    console.log(`X => ${selectedOverlayX.value / scale - framePositionX.value}`);
+    console.log(`Y => ${selectedOverlayY.value / scale - framePositionY.value}`);
 
     // TODO:
     // Spot has been set to a new location
@@ -221,83 +228,156 @@ export default function CanvasScreen() {
 
   const drag = Gesture.Pan().onChange((event) => {
     console.log(event);
+
+
+    const shiftValue = shiftSize.value;
+    const scaleValue = frameScale.value;
+
+    const shift = () => {
+      return shiftValue / scaleValue;
+    }
+
+
     const newX = selectedOverlayX.value + event.changeX;
     const newY = selectedOverlayY.value + event.changeY;
-    if (newY < selectedHardTopBound) {
-      selectedOverlayY.value = selectedHardTopBound;
-      imageTranslateY.value += 5;
-      framePositionY.value = imageTranslateY.value / imageScale.value;
-    } else if (newY < selectedSoftTopBound) {
-      selectedOverlayY.value = newY;
-      imageTranslateY.value += 5;
-      framePositionY.value = imageTranslateY.value / imageScale.value;
-    } else if (selectedHardBottomBound < newY) {
-      selectedOverlayY.value = selectedHardBottomBound;
-      imageTranslateY.value -= 5;
-      framePositionY.value = imageTranslateY.value / imageScale.value;
-    } else if (selectedSoftBottomBound < newY) {
-      selectedOverlayY.value = newY;
-      imageTranslateY.value -= 5;
-      framePositionY.value = imageTranslateY.value / imageScale.value;
-    } else {
-      selectedOverlayY.value = newY;
-    }
-    if (newX < selectedHardLeftBound) {
-      selectedOverlayX.value = selectedHardLeftBound;
-      imageTranslateX.value += 5;
-      framePositionX.value = imageTranslateX.value / imageScale.value;
-    } else if (newX < selectedSoftLeftBound) {
+
+
+    const bound = selectedBounds.value;
+
+    if (newX < bound.hard.left) {
+      selectedOverlayX.value = bound.hard.left;
+      framePositionX.value += shift();
+    } else if (newX < bound.soft.left) {
       selectedOverlayX.value = newX;
-      imageTranslateX.value += 5;
-      framePositionX.value = imageTranslateX.value / imageScale.value;
-    } else if (selectedHardRightBound < newX) {
-      selectedOverlayX.value = selectedHardRightBound;
-      imageTranslateX.value -= 5;
-      framePositionX.value = imageTranslateX.value / imageScale.value;
-    } else if (selectedSoftRightBound < newX) {
+      framePositionX.value += shift();
+    } else if (bound.hard.right < newX) {
+      selectedOverlayX.value = bound.hard.right;
+      framePositionX.value -= shift();
+    } else if (bound.soft.right < newX) {
       selectedOverlayX.value = newX;
-      imageTranslateX.value -= 5;
-      framePositionX.value = imageTranslateX.value / imageScale.value;
+      framePositionX.value -= shift();
     } else {
       selectedOverlayX.value = newX;
     }
-    console.log(`X (${newX}): ${selectedHardLeftBound} < ${selectedOverlayX.value} < ${selectedHardRightBound}`);
-    console.log(`Y (${newY}): ${selectedHardTopBound} < ${selectedOverlayY.value} < ${selectedHardBottomBound}`);
+
+    if (newY < bound.hard.top) {
+      selectedOverlayY.value = bound.hard.top;
+      framePositionY.value += shift();
+    } else if (newY < bound.soft.top) {
+      selectedOverlayY.value = newY;
+      framePositionY.value += shift();
+    } else if (bound.hard.bottom < newY) {
+      selectedOverlayY.value = bound.hard.bottom;
+      framePositionY.value -= shift();
+    } else if (bound.soft.bottom < newY) {
+      selectedOverlayY.value = newY;
+      framePositionY.value -= shift();
+    } else {
+      selectedOverlayY.value = newY;
+    }
+
+
+    console.log(`X (${newX}): ${bound.hard.left} < ${selectedOverlayX.value} < ${bound.hard.right}`);
+    console.log(`Y (${newY}): ${bound.hard.top} < ${selectedOverlayY.value} < ${bound.hard.bottom}`);
   });
 
 
   const dragCanvas = Gesture.Pan().minPointers(2).onChange((event) => {
     console.log(event);
-    imageTranslateX.value += event.changeX;
-    imageTranslateY.value += event.changeY;
-    framePositionX.value = imageTranslateX.value / imageScale.value;
-    framePositionY.value = imageTranslateY.value / imageScale.value;
+
+
+    const scale = frameScale.value;
+
+    selectedOverlayX.value += event.changeX;
+    selectedOverlayY.value += event.changeY;
+    framePositionX.value += event.changeX / scale;
+    framePositionY.value += event.changeY / scale;
+
+
+    console.log(`Frame Position X: ${framePositionX.value}`);
+    console.log(`Frame Position Y: ${framePositionY.value}`);
   });
 
 
   const zoom = Gesture.Pinch().onChange((event) => {
-    const minFrameSize = 20;
-    const maxFrameSize = image.width();
-    const change = 0.025 * frameSize.value;
-    const change2 = 0.0125 * frameSize.value;
     console.log(event);
-    if (event.velocity >= 0) {
-      if (minFrameSize <= frameSize.value) {
-        frameSize.value -= change;
-        framePositionX.value -= change2;
-        framePositionY.value -= change2;
+
+
+    const curFrameSize = frameSize.value;
+
+    const zf = zoomFactor.value;
+    const frameSizeChange = zf * curFrameSize;
+    const framePositionChange = zf * curFrameSize / 2;
+
+
+    if (0 < event.velocity) {
+      if (minFrameSize.value <= curFrameSize) {
+
+        const canvasWidth = canvasDimension.value.width;
+
+        const curFrameScale = frameScale.value;
+        const curFramePositionX = framePositionX.value;
+        const curFramePositionY = framePositionY.value;
+        const curCanvasPositionX = selectedOverlayX.value;
+        const curCanvasPositionY = selectedOverlayY.value;
+
+        const newFrameSize = curFrameSize - frameSizeChange;
+        const newFramePositionX = curFramePositionX - framePositionChange;
+        const newFramePositionY = curFramePositionY - framePositionChange;
+
+        const newFrameScale = canvasWidth / newFrameSize;
+
+        const imagePositionX = curCanvasPositionX / curFrameScale - curFramePositionX;
+        const newCanvasPositionX = (imagePositionX + newFramePositionX) * newFrameScale;
+        const imagePositionY = curCanvasPositionY / curFrameScale - curFramePositionY;
+        const newCanvasPositionY = (imagePositionY + newFramePositionY) * newFrameScale;
+
+        frameSize.value = newFrameSize;
+        framePositionX.value = newFramePositionX;
+        framePositionY.value = newFramePositionY;
+
+        selectedOverlayX.value = newCanvasPositionX;
+        selectedOverlayY.value = newCanvasPositionY;
+
       }
-    } else {
-      if (frameSize.value < maxFrameSize) {
-        frameSize.value += change;
-        framePositionX.value += change2;
-        framePositionY.value += change2;
+    } else if (event.velocity < 0) {
+      if (frameSize.value < maxFrameSize.value) {
+
+        const canvasWidth = canvasDimension.value.width;
+
+        const curFrameScale = frameScale.value;
+        const curFramePositionX = framePositionX.value;
+        const curFramePositionY = framePositionY.value;
+        const curCanvasPositionX = selectedOverlayX.value;
+        const curCanvasPositionY = selectedOverlayY.value;
+
+        const newFrameSize = curFrameSize + frameSizeChange;
+        const newFramePositionX = curFramePositionX + framePositionChange;
+        const newFramePositionY = curFramePositionY + framePositionChange;
+
+        const newFrameScale = canvasWidth / newFrameSize;
+
+        const imagePositionX = curCanvasPositionX / curFrameScale - curFramePositionX;
+        const newCanvasPositionX = (imagePositionX + newFramePositionX) * newFrameScale;
+        const imagePositionY = curCanvasPositionY / curFrameScale - curFramePositionY;
+        const newCanvasPositionY = (imagePositionY + newFramePositionY) * newFrameScale;
+
+        frameSize.value = newFrameSize;
+        framePositionX.value = newFramePositionX;
+        framePositionY.value = newFramePositionY;
+
+        selectedOverlayX.value = newCanvasPositionX;
+        selectedOverlayY.value = newCanvasPositionY;
+
       }
     }
-    imageScale.value = (canvasRightBound - canvasLeftBound) / frameSize.value;
-    imageTranslateX.value = imageScale.value * framePositionX.value;
-    imageTranslateY.value = imageScale.value * framePositionY.value;
-    console.log(imageScale.value);
+
+
+    console.log(`Frame Size Change: ${frameSizeChange}`);
+    console.log(`Frame Position Change: ${framePositionChange}`);
+    console.log(`Frame Size: ${frameSize.value}`);
+    console.log(`Frame Position X: ${framePositionX.value}`);
+    console.log(`Frame Position Y: ${framePositionY.value}`);
   });
 
 
@@ -313,19 +393,19 @@ export default function CanvasScreen() {
 
         <GestureDetector gesture={zoom}>
         <GestureDetector gesture={dragCanvas}>
-        <Canvas style={styles.canvas} onLayout={onLayoutHandler}>
+        <Canvas style={styles.canvas} onSize={canvasDimension}>
           <Fill color="lightblue" />
 
 
           <Group transform={imageTransform}>
             <Image image={image} fit="none" x={0} y={0} width={image.width()} height={image.height()} />
             {data.spots.filter((_, index)=>{return index !== selectedOverlayId}).map((spot, index) => (
-            <Circle key={index} cx={spot.area.x} cy={spot.area.y} r={radius} color="black" />
+            <Circle key={index} cx={spot.area.x} cy={spot.area.y} r={spotRadius} color="black" />
             ))}
           </Group>
 
           {selectedOverlayId !== undefined &&
-          <Circle cx={selectedOverlayX} cy={selectedOverlayY} r={radius} color="blue" />
+          <Circle cx={selectedOverlayX} cy={selectedOverlayY} r={spotRadius} color="blue" />
           }
 
 
@@ -336,7 +416,7 @@ export default function CanvasScreen() {
 
         {selectedOverlayId !== undefined &&
         <GestureDetector gesture={drag}>
-          <Animated.View style={style} />
+          <Animated.View style={pointer} />
         </GestureDetector>
         }
 
