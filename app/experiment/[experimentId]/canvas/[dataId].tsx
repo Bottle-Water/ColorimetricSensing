@@ -1,11 +1,11 @@
 import { Button } from "@/components/button";
-import { DataPoint, Spot } from "@/types/data";
+import { DataPoint, Spot, SpotType } from "@/types/data";
 import { getDataPoint, saveDataPoint, serialize } from "@/utilities/storage";
 import { faArrowLeft, faCheck, faQuestion, faWandMagicSparkles, faXmark } from "@fortawesome/free-solid-svg-icons";
 import { Canvas, Circle, Fill, Group, Image, useImage } from '@shopify/react-native-skia';
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, { useAnimatedStyle, useDerivedValue, useSharedValue } from "react-native-reanimated";
 
@@ -50,6 +50,7 @@ export default function CanvasScreen() {
 
 
   const [selectedOverlayId, setSelectedOverlayId] = useState<number>();
+  const [selectedOverlayType, setSelectedOverlayType] = useState<SpotType>("reference");
 
   const selectedOverlayX = useSharedValue(0);
   const selectedOverlayY = useSharedValue(0);
@@ -184,8 +185,13 @@ export default function CanvasScreen() {
       const scale = frameScale.value;
       selectedOverlayX.value = (newSelectedSpot.area.x + framePositionX.value) * scale;
       selectedOverlayY.value = (newSelectedSpot.area.y + framePositionY.value) * scale;
+      setSelectedOverlayType(newSelectedSpot.type);
       setSelectedOverlayId(spotId);
     }
+  }
+
+  const toggle_ = () => {
+    setSelectedOverlayType(selectedOverlayType === "reference" ? "sample" : "reference");
   }
 
 
@@ -198,6 +204,7 @@ export default function CanvasScreen() {
     console.log(`Frame Position (X, Y): (${framePositionX.value}, ${framePositionY.value})`);
     console.log(`Frame Scale: ${scale}`);
     console.log(`Overlay Position (X, Y): (${selectedOverlayX.value}, ${selectedOverlayY.value})`);
+    newData.spots[spotId].type = selectedOverlayType;
     newData.spots[spotId].area.x = selectedOverlayX.value / scale - framePositionX.value;
     newData.spots[spotId].area.y = selectedOverlayY.value / scale - framePositionY.value;
     console.log(`X => ${selectedOverlayX.value / scale - framePositionX.value}`);
@@ -421,16 +428,16 @@ export default function CanvasScreen() {
         }
 
         {selectedOverlayId !== undefined &&
-        <>
-        <View style={{position:"absolute",top:0,left:0}}>
+        <View style={styles.modbar}>
           <Button
             icon={faXmark}
             backgroundColor="red"
             margin={10}
             onPress={()=>delete_(selectedOverlayId)}
           />
-        </View>
-        <View style={{position:"absolute",top:0,right:0}}>
+          <Pressable style={styles.toggle} onPress={toggle_}>
+            <Text>{selectedOverlayType}</Text>
+          </Pressable>
           <Button
             icon={faCheck}
             backgroundColor="green"
@@ -438,7 +445,6 @@ export default function CanvasScreen() {
             onPress={()=>save_(selectedOverlayId)}
           />
         </View>
-        </>
         }
       </View>
 
@@ -484,6 +490,21 @@ const styles = StyleSheet.create({
   },
   canvas: {
     flex: 1
+  },
+  modbar: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    left: 0,
+    position: "absolute",
+    right: 0,
+    top: 0
+  },
+  toggle: {
+    backgroundColor: "white",
+    borderRadius: 15,
+    borderWidth: 1,
+    padding: 10
   },
   actionbar: {
     flexDirection: "row",
