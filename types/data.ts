@@ -28,19 +28,9 @@ export type DataPoint = {
 }
 
 
-export type Dot = {
-  x: number,
-  y: number
-}
-
-
-export type Shape = "circle" | "dot"
-
-
 export type Spot = {
   type: SpotType,
-  shape: Shape,
-  area: Circle | Dot,
+  area: Circle,
   color?: Color
 }
 

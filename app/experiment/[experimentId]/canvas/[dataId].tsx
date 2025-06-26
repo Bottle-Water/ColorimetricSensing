@@ -2,10 +2,10 @@ import { Button } from "@/components/button";
 import { DataPoint, Spot, SpotType } from "@/types/data";
 import { getDataPoint, saveDataPoint, serialize } from "@/utilities/storage";
 import { faArrowLeft, faCheck, faQuestion, faWandMagicSparkles, faXmark } from "@fortawesome/free-solid-svg-icons";
-import { Canvas, Circle, Fill, Group, Image, useImage } from '@shopify/react-native-skia';
+import { Canvas, Circle, Fill, Group, Image, matchFont, Text as SkiaText, useImage } from '@shopify/react-native-skia';
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, { useAnimatedStyle, useDerivedValue, useSharedValue } from "react-native-reanimated";
 
@@ -44,57 +44,8 @@ export default function CanvasScreen() {
 
   const canvasDimension = useSharedValue({width: 0, height: 0});
   const softZoneSize = useSharedValue(80);
-  const spotRadius = useSharedValue(10);
   const shiftSize = useSharedValue(5);
   const zoomFactor = useSharedValue(0.025);
-
-
-  const [selectedOverlayId, setSelectedOverlayId] = useState<number>();
-  const [selectedOverlayType, setSelectedOverlayType] = useState<SpotType>("reference");
-
-  const selectedOverlayX = useSharedValue(0);
-  const selectedOverlayY = useSharedValue(0);
-
-  const selectedBounds = useDerivedValue(() => {
-    // Pad the edges of the screen
-    // with an invisible border.
-    const radius = spotRadius.value;
-    const width = canvasDimension.value.width;
-    const height = canvasDimension.value.height;
-    const offset = softZoneSize.value + radius;
-    return {
-      hard: {
-        top: radius,
-        left: radius,
-        right: width - radius,
-        bottom: height - radius
-      },
-      soft: {
-        top: offset,
-        left: offset,
-        right: width - offset,
-        bottom: height - offset
-      }
-    }
-  });
-
-
-  const pointer = useAnimatedStyle(() => {
-    const radius = spotRadius.value;
-    return {
-      position: "absolute",
-      top: -radius,
-      left: -radius,
-      width: radius * 2,
-      height: radius * 2,
-      borderColor: "red",
-      borderWidth: 2,
-      transform: [
-        {translateX: selectedOverlayX.value},
-        {translateY: selectedOverlayY.value}
-      ]
-    }
-  });
 
 
   // Number of horizontal image pixels on canvas.
@@ -130,14 +81,81 @@ export default function CanvasScreen() {
   });
 
 
+  const spotRadius = useSharedValue(100);
+  const minSpotRadius = useSharedValue(10);
+  const maxSpotRadius = useSharedValue(10);
+
+
+  const [selectedOverlayId, setSelectedOverlayId] = useState<number>();
+  const [selectedOverlayType, setSelectedOverlayType] = useState<SpotType>("reference");
+
+  const selectedOverlayX = useSharedValue(0);
+  const selectedOverlayY = useSharedValue(0);
+  const selectedOverlayR = useDerivedValue(() => {
+    return spotRadius.value * frameScale.value;
+  });
+
+  const selectedBounds = useDerivedValue(() => {
+    // Pad the edges of the screen
+    // with an invisible border.
+    const radius = selectedOverlayR.value;
+    const width = canvasDimension.value.width;
+    const height = canvasDimension.value.height;
+    const offset = softZoneSize.value + radius;
+    return {
+      hard: {
+        top: radius,
+        left: radius,
+        right: width - radius,
+        bottom: height - radius
+      },
+      soft: {
+        top: offset,
+        left: offset,
+        right: width - offset,
+        bottom: height - offset
+      }
+    }
+  });
+
+
+  const pointer = useAnimatedStyle(() => {
+    //const radius = spotRadius.value;
+    const radius = canvasDimension.value.width / 5;
+    return {
+      position: "absolute",
+      top: -radius, // -radius
+      left: -radius, // -radius
+      width: radius * 2, // radius
+      height: radius * 2, // radius
+      borderColor: "red",
+      borderWidth: 2,
+      transform: [
+        {translateX: selectedOverlayX.value},
+        {translateY: selectedOverlayY.value}
+      ]
+    }
+  });
+
+
   const image = useImage(data?.image);
   useEffect(() => {
     if (image) {
       const imageWidth = image.width();
       frameSize.value = imageWidth;
       maxFrameSize.value = imageWidth;
+      maxSpotRadius.value = imageWidth / 4;
     }
-  }, [image, frameSize, maxFrameSize]);
+  }, [image, frameSize, maxFrameSize, maxSpotRadius]);
+
+
+  const fontFamily = Platform.select({ ios: "Helvetica", default: "serif" });
+  const font = matchFont({
+    fontFamily,
+    fontSize: 50,
+    fontStyle: "normal",
+    fontWeight: "bold"
+  });
 
 
   // Ensures the data point and image are
@@ -159,10 +177,10 @@ export default function CanvasScreen() {
 
     const newSpot: Spot = {
       type: "reference",
-      shape: "dot",
       area: {
         x: image.width()/2,
-        y: image.height()/2
+        y: image.height()/2,
+        r: 100
       }
     }
 
@@ -185,6 +203,7 @@ export default function CanvasScreen() {
       const scale = frameScale.value;
       selectedOverlayX.value = (newSelectedSpot.area.x + framePositionX.value) * scale;
       selectedOverlayY.value = (newSelectedSpot.area.y + framePositionY.value) * scale;
+      spotRadius.value = newSelectedSpot.area.r;
       setSelectedOverlayType(newSelectedSpot.type);
       setSelectedOverlayId(spotId);
     }
@@ -207,8 +226,10 @@ export default function CanvasScreen() {
     newData.spots[spotId].type = selectedOverlayType;
     newData.spots[spotId].area.x = selectedOverlayX.value / scale - framePositionX.value;
     newData.spots[spotId].area.y = selectedOverlayY.value / scale - framePositionY.value;
+    newData.spots[spotId].area.r = spotRadius.value;
     console.log(`X => ${selectedOverlayX.value / scale - framePositionX.value}`);
     console.log(`Y => ${selectedOverlayY.value / scale - framePositionY.value}`);
+    console.log(`R => ${spotRadius}`);
 
     // TODO:
     // Spot has been set to a new location
@@ -286,6 +307,28 @@ export default function CanvasScreen() {
 
     console.log(`X (${newX}): ${bound.hard.left} < ${selectedOverlayX.value} < ${bound.hard.right}`);
     console.log(`Y (${newY}): ${bound.hard.top} < ${selectedOverlayY.value} < ${bound.hard.bottom}`);
+  });
+
+
+  const resize = Gesture.Pinch().onChange((event) => {
+    console.log(event);
+
+
+    const curSpotRadius = spotRadius.value;
+
+
+    if (0 < event.velocity) {
+      if (curSpotRadius < maxSpotRadius.value) {
+        spotRadius.value += 1;
+      }
+    } else if (event.velocity < 0) {
+      if (minSpotRadius.value < curSpotRadius) {
+        spotRadius.value -= 1;
+      }
+    }
+
+
+    console.log(`Spot Radius: ${spotRadius.value}`);
   });
 
 
@@ -407,12 +450,16 @@ export default function CanvasScreen() {
           <Group transform={imageTransform}>
             <Image image={image} fit="none" x={0} y={0} width={image.width()} height={image.height()} />
             {data.spots.filter((_, index)=>{return index !== selectedOverlayId}).map((spot, index) => (
-            <Circle key={index} cx={spot.area.x} cy={spot.area.y} r={spotRadius} color="black" />
+            <Group key={index}>
+            <Circle cx={spot.area.x} cy={spot.area.y} r={spot.area.r} color="white" opacity={0.5} />
+            <Circle cx={spot.area.x} cy={spot.area.y} r={spot.area.r} style="stroke" color="black" />
+            <SkiaText x={spot.area.x} y={spot.area.y} font={font} text={`${index}`} />
+            </Group>
             ))}
           </Group>
 
           {selectedOverlayId !== undefined &&
-          <Circle cx={selectedOverlayX} cy={selectedOverlayY} r={spotRadius} color="blue" />
+          <Circle cx={selectedOverlayX} cy={selectedOverlayY} r={selectedOverlayR} style="stroke" color="black" />
           }
 
 
@@ -422,8 +469,10 @@ export default function CanvasScreen() {
 
 
         {selectedOverlayId !== undefined &&
+        <GestureDetector gesture={resize}>
         <GestureDetector gesture={drag}>
           <Animated.View style={pointer} />
+        </GestureDetector>
         </GestureDetector>
         }
 
@@ -451,12 +500,13 @@ export default function CanvasScreen() {
       <View style={styles.actionbar}>
         <ScrollView style={styles.selectionbar} horizontal>
           {data.spots.map((_, index) => (
-          <Button
+          <Pressable
             key={index}
-            {...(index===selectedOverlayId&&{backgroundColor:"blue"})}
-            margin={10}
             onPress={()=>select_(index)}
-          />
+            style={index===selectedOverlayId?styles.selected:styles.selectable}
+          >
+            <Text>{index}</Text>
+          </Pressable>
           ))}
         </ScrollView>
         <Button
@@ -478,7 +528,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     borderBottomColor: "black",
-    borderBottomWidth: 3
+    borderBottomWidth: 3,
+    zIndex: 10
   },
   title: {
     fontSize: 25,
@@ -514,5 +565,28 @@ const styles = StyleSheet.create({
   },
   selectionbar: {
     backgroundColor: "#A9A9A9",
+  },
+  selectable: {
+    alignItems: "center",
+    backgroundColor: "white",
+    borderColor: "black",
+    borderRadius: 20,
+    borderWidth: 2,
+    justifyContent: "center",
+    height: 40,
+    margin: 10,
+    width: 40,
+  },
+  selected: {
+    alignItems: "center",
+    backgroundColor: "white",
+    borderColor: "black",
+    borderRadius: 20,
+    borderStyle: "dashed",
+    borderWidth: 4,
+    justifyContent: "center",
+    height: 40,
+    margin: 10,
+    width: 40
   }
 });
