@@ -1,8 +1,9 @@
 import { Button } from "@/components/button";
 import { DataPoint, Spot, SpotType } from "@/types/data";
 import { getDataPoint, saveDataPoint, serialize } from "@/utilities/storage";
+import { calcConc } from "@/utilities/analysis";
 import { faArrowLeft, faCheck, faQuestion, faWandMagicSparkles, faXmark } from "@fortawesome/free-solid-svg-icons";
-import { Canvas, Circle, Fill, Group, Image, matchFont, Text as SkiaText, useImage } from '@shopify/react-native-skia';
+import { Canvas, Circle, Fill, Group, Image, matchFont, Text as SkiaText, useImage, SkSurface, Skia} from '@shopify/react-native-skia';
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -234,6 +235,40 @@ export default function CanvasScreen() {
     // TODO:
     // Spot has been set to a new location
     // 1 Extract color of the spot
+
+    // Needs logic to only run this for sample spot and not reference, also to select test type (igg/amonia)
+    // It currently assumes all spots are sample and uses a hardcoded reference color
+    // Also needs to be able to look up the color of the reference spots
+    // currently it just takes color from a point, add averages later (image.readPixels() from skImage?)
+
+    const surface = Skia.Surface.Make(image.width(), image.height());
+    const canvas = surface.getCanvas();
+    canvas.drawImage(image, 0, 0); // draw image to the canvas
+
+    const snapshot = surface.makeImageSnapshot();
+    const pixelData = snapshot.readPixels();
+    console.log(`PIXELS: ${pixelData.length}`);
+
+    console.log(`PIXEL TEST: ${pixelData[0]}`);
+    console.log(`PIXEL TEST: ${pixelData[1]}`);
+    console.log(`PIXEL TEST: ${pixelData[10]}`);
+    console.log(`PIXEL TEST: ${pixelData[100]}`);
+    console.log(`PIXEL TEST: ${pixelData[1000]}`);
+    console.log(`PIXEL TEST: ${pixelData[10000]}`);
+
+    // I think the indices are off, not sure if this formula is correct, need to do more research into how pixelData stores things
+    const index = Math.round((newData.spots[spotId].area.y * image.width() + newData.spots[spotId].area.x) * 4);
+    console.log(`INDEX: ${index}`);
+    const r = pixelData[index];
+    const g = pixelData[index + 1];
+    const b = pixelData[index + 2];
+
+    console.log(`Pixel: R=${r} G=${g} B=${b}`);
+
+    const conc = calcConc([88,34,0], [r,g,b]);
+    console.log(`CONCENTRATION: ${conc}`);
+    newData.concentration = conc;
+
 
     saveDataPoint(parseInt(experimentId), newData);
 
