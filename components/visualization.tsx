@@ -6,14 +6,25 @@ export function Visualization({experiment}: {experiment: Experiment}) {
 
 
   let formatedResult = "N/A";
-  if (experiment.result) {
-    formatedResult = `${experiment.result.value} ${experiment.result.units}`;
+  let sum = 0;
+  let num = 0;
+  //if (experiment.result) {
+  for (const dataPoint of experiment.data) {
+    //formatedResult = `${experiment.result.value} ${experiment.result.units}`;
+    if (dataPoint.concentration !== null) {
+      sum += dataPoint.concentration.value;
+      num += 1;
+    }
   }
+  if (num > 0) {
+    formatedResult = `${(sum/num).toFixed(2)} ppm`;
+  }
+  //}
 
 
   return (
     <View style={styles.centeredcontainer}>
-      <Text style={styles.resultvalue}>Result: {formatedResult}</Text>
+      <Text style={styles.resultvalue}>{formatedResult}</Text>
     </View>
   );
 }
@@ -29,6 +40,6 @@ const styles = StyleSheet.create({
     justifyContent: "center"
   },
   resultvalue: {
-    fontSize: 18
+    fontSize: 16
   }
 });
