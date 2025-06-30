@@ -5,13 +5,11 @@ export type Circle = {
 }
 
 
-export type Color = {
-  format: ColorFormat,
-  values: number[]
+export type RGBcolor = {
+  red: number,
+  green: number,
+  blue: number
 }
-
-
-export type ColorFormat = "rgb"
 
 
 export type Concentration = {
@@ -31,7 +29,7 @@ export type DataPoint = {
 export type Spot = {
   type: SpotType,
   area: Circle,
-  color?: Color
+  color?: RGBcolor
 }
 
 
