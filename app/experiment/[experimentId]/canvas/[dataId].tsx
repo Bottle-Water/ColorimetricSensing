@@ -1,7 +1,7 @@
 import { Button } from "@/components/button";
 import { DataPoint, RGBcolor, Spot, SpotType } from "@/types/data";
 import { getDataPoint, saveDataPoint, serialize } from "@/utilities/storage";
-//import { calcConc } from "@/utilities/analysis";
+import { calcConc } from "@/utilities/analysis";
 import { faArrowLeft, faCheck, faQuestion, faWandMagicSparkles, faXmark } from "@fortawesome/free-solid-svg-icons";
 import { Canvas, Circle, ColorType, Fill, Group, Image, matchFont, Text as SkiaText, useImage, /*SkSurface, Skia*/} from '@shopify/react-native-skia';
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
@@ -286,15 +286,13 @@ export default function CanvasScreen() {
         console.log(`Spot X Coordinate: ${spot.area.x}`);
         console.log(`Spot Y Coordinate: ${spot.area.y}`);
 
-        // I think the indices are off, not sure if this formula is correct, need to do more research into how pixelData stores things
-        //const index = Math.round((newData.spots[spotId].area.y * image.width() + newData.spots[spotId].area.x) * 4);
-        const index = (Math.round(spot.area.y) * image.width() + Math.round(spot.area.x)) * 4;
-        console.log(`INDEX: ${index}`);
+        const i = (Math.round(spot.area.y) * image.width() + Math.round(spot.area.x)) * 4;
+        console.log(`INDEX: ${i}`);
 
-        const red = pixelData[index];
-        const green = pixelData[index + 1];
-        const blue = pixelData[index + 2];
-        const alpha = pixelData[index + 3];
+        const red = pixelData[i];
+        const green = pixelData[i + 1];
+        const blue = pixelData[i + 2];
+        const alpha = pixelData[i + 3];
 
         console.log(`Pixel: RED=${red} GREEN=${green} BLUE=${blue} ALPHA=${alpha}`);
 
@@ -306,12 +304,23 @@ export default function CanvasScreen() {
 
         spot.color = color;
       }
+
+
+      // I think the indices are off, not sure if this formula is correct, need to do more research into how pixelData stores things
+      //const index = Math.round((newData.spots[spotId].area.y * image.width() + newData.spots[spotId].area.x) * 4);
+      const index = (Math.round(newData.spots[spotId].area.y) * image.width() + Math.round(newData.spots[spotId].area.x)) * 4;
+      console.log(`INDEX: ${index}`);
+      const r = pixelData[index];
+      const g = pixelData[index + 1];
+      const b = pixelData[index + 2];
+      console.log(`Pixel: R=${r} G=${g} B=${b}`);
+      const conc = calcConc([88,34,0], [r,g,b]);
+      console.log(`CONCENTRATION: ${conc}`);
+      newData.concentration = {
+        value: conc,
+        units: "ppm"
+      }
     }
-
-
-    //const conc = calcConc([88,34,0], [r,g,b]);
-    //console.log(`CONCENTRATION: ${conc}`);
-    //newData.concentration = conc;
 
 
     saveDataPoint(parseInt(experimentId), newData);
