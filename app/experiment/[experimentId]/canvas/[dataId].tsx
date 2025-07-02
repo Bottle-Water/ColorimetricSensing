@@ -532,7 +532,7 @@ export default function CanvasScreen() {
         <GestureDetector gesture={zoom}>
         <GestureDetector gesture={dragCanvas}>
         <Canvas style={styles.canvas} onSize={canvasDimension}>
-          <Fill color="lightblue" />
+          <Fill color="lightgrey" />
 
 
           <Group transform={imageTransform}>
@@ -612,10 +612,10 @@ export default function CanvasScreen() {
 const styles = StyleSheet.create({
   header: {
     alignItems: "center",
-    backgroundColor: "#c7c6c1",
+    backgroundColor: "black",
     flexDirection: "row",
     justifyContent: "space-between",
-    borderBottomColor: "black",
+    borderBottomColor: "#FFC904",
     borderBottomWidth: 3,
     zIndex: 10
   },
@@ -640,23 +640,23 @@ const styles = StyleSheet.create({
     top: 0
   },
   toggle: {
-    backgroundColor: "white",
+    backgroundColor: "#FFC904",
     borderRadius: 15,
     borderWidth: 1,
     padding: 10
   },
   actionbar: {
     flexDirection: "row",
-    backgroundColor: "#A9A9A9",
-    borderTopColor: "black",
+    backgroundColor: "black",
+    borderTopColor: "#FFC904",
     borderTopWidth: 3
   },
   selectionbar: {
-    backgroundColor: "#A9A9A9",
+    backgroundColor: "black",
   },
   selectable: {
     alignItems: "center",
-    backgroundColor: "white",
+    backgroundColor: "#FFC904",
     borderColor: "black",
     borderRadius: 20,
     borderWidth: 2,

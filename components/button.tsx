@@ -3,9 +3,9 @@ import { FontAwesomeIcon } from "@fortawesome/react-native-fontawesome";
 import { Pressable, StyleSheet } from "react-native";
 
 export function Button({
-  backgroundColor="#239ED0",
-  borderColor="white", borderWidth=2,
-  icon=faCircleDot, iconColor="white", iconScale=1/2,
+  backgroundColor="#FFC904",
+  borderColor="black", borderWidth=2,
+  icon=faCircleDot, iconColor="black", iconScale=1/2,
   margin=0, size=40,
   onPress=()=>{},
 }) {

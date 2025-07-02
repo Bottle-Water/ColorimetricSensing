@@ -3,8 +3,8 @@ import { Visualization } from "@/components/visualization";
 import { DataPoint } from "@/types/data";
 import { Experiment } from "@/types/experiment";
 import { deleteDataPoint, deleteExperiment, getExperiment, isUnsavedExperiment, saveExperiment, serialize } from "@/utilities/storage";
-import { faImage, faPaperPlane, faSave } from "@fortawesome/free-regular-svg-icons";
-import { faArrowLeft, faPenToSquare, faQuestion, faTrash, faXmark } from "@fortawesome/free-solid-svg-icons";
+import { faImage, faSave } from "@fortawesome/free-regular-svg-icons";
+import { faArrowLeft, faPenToSquare, faQuestion, faShare, faTrash, faXmark } from "@fortawesome/free-solid-svg-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
@@ -269,7 +269,7 @@ export default function ExperimentScreen() {
             ))}
 
             {experiment.data.length === 0 &&
-            <Text style={styles.label}>No Data...</Text>
+            <Text style={styles.label}>Please take an image or choose an image...</Text>
             }
 
 
@@ -326,7 +326,7 @@ export default function ExperimentScreen() {
           />
           :
           <Button
-            icon={faPaperPlane}
+            icon={faShare}
             margin={10}
             onPress={export_}
           />
@@ -388,8 +388,8 @@ export default function ExperimentScreen() {
 const styles = StyleSheet.create({
   header: {
     alignItems: "center",
-    backgroundColor: "#A9A9A9",
-    borderBottomColor: "black",
+    backgroundColor: "black",
+    borderBottomColor: "#FFC904",
     borderBottomWidth: 3,
     flexDirection: "row",
     justifyContent: "space-between"
@@ -447,15 +447,15 @@ const styles = StyleSheet.create({
     marginBottom: 5
   },
   modifiedbox: {
-    backgroundColor: "lightblue",
-    borderColor: "blue",
+    backgroundColor: "lightgray",
+    borderColor: "#FFC904",
     borderRadius: 5,
     borderStyle: "solid",
     borderWidth: 3,
     padding: 5
   },
   activebox: {
-    backgroundColor: "lightblue",
+    backgroundColor: "#FFC904",
     borderColor: "gray",
     borderRadius: 5,
     borderStyle: "dashed",
@@ -472,8 +472,8 @@ const styles = StyleSheet.create({
   },
   actionbar: {
     alignItems: "center",
-    backgroundColor: "#A9A9A9",
-    borderTopColor: "black",
+    backgroundColor: "black",
+    borderTopColor: "#FFC904",
     borderTopWidth: 3,
     flexDirection: "row",
     justifyContent: "space-between"

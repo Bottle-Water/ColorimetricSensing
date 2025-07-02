@@ -411,10 +411,10 @@ const styles = StyleSheet.create({
   header: {
     zIndex: 10,
     alignItems: "center",
-    backgroundColor: "#A9A9A9",
+    backgroundColor: "black",
     flexDirection: "row",
     justifyContent: "space-between",
-    borderBottomColor: "black",
+    borderBottomColor: "#FFC904",
     borderBottomWidth: 3
   },
   title: {
@@ -430,8 +430,8 @@ const styles = StyleSheet.create({
   },
   actionbar: {
     flexDirection: "row",
-    backgroundColor: "#A9A9A9",
-    borderTopColor: "black",
+    backgroundColor: "black",
+    borderTopColor: "#FFC904",
     borderTopWidth: 3
   },
   actionbarleftpanel: {

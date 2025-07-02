@@ -3,7 +3,7 @@ import { Summary } from "@/components/summary";
 import { Experiment } from "@/types/experiment";
 import { createExperiment, debugStorage, deletedUnsavedExperiments, getExperiments, serialize } from "@/utilities/storage";
 import { faUser } from "@fortawesome/free-regular-svg-icons";
-import { faFlask, faMagnifyingGlass } from "@fortawesome/free-solid-svg-icons";
+import { faFlaskVial,faSearch} from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-native-fontawesome";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
@@ -79,7 +79,7 @@ export default function LabBookScreen() {
 
       <View style={styles.header}>
         <Button
-          icon={faFlask}
+          icon={faFlaskVial}
           margin={10}
           onPress={create_}
         />
@@ -105,7 +105,7 @@ export default function LabBookScreen() {
 
 
       <View style={styles.searchbar}>
-        <FontAwesomeIcon icon={faMagnifyingGlass} />
+        <FontAwesomeIcon icon={faSearch} style={{ color: '#FFC904' }} size={20}/>
         <TextInput
           inputMode="search"
           onSubmitEditing={filter_}
@@ -123,8 +123,8 @@ export default function LabBookScreen() {
 const styles = StyleSheet.create({
   header: {
     alignItems: "center",
-    backgroundColor: "#A9A9A9",
-    borderBottomColor: "black",
+    backgroundColor: "black",
+    borderBottomColor: "#FFC904",
     borderBottomWidth: 3,
     flexDirection: "row",
     justifyContent: "space-between"
@@ -136,8 +136,8 @@ const styles = StyleSheet.create({
   },
   searchbar: {
     alignItems: "center",
-    backgroundColor: "#A9A9A9",
-    borderTopColor: "black",
+    backgroundColor: "black",
+    borderTopColor: "#FFC904",
     borderTopWidth: 3,
     color:"black",
     flexDirection: "row",

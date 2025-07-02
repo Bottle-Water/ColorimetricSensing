@@ -1,6 +1,9 @@
 import { Visualization } from "@/components/visualization";
 import { Experiment } from "@/types/experiment";
 import { StyleSheet, Text, View } from "react-native";
+import { faCalendarCheck,faCommentDots } from "@fortawesome/free-regular-svg-icons";
+import { faFlask } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-native-fontawesome";
 
 
 export function Summary({experiment}: {experiment: Experiment}) {
@@ -15,10 +18,17 @@ export function Summary({experiment}: {experiment: Experiment}) {
       <View style={styles.info}>
 
 
-        <Text>{experiment.type}</Text>
-        <Text>(#{experiment.id}) {experiment.name}</Text>
-        <Text>{formatedDate}</Text>
-        <Text>{truncatedDescription}</Text>
+        <Text style={styles.type}>{experiment.type}(#{experiment.id})</Text>
+        <Text style={styles.name}>
+          <FontAwesomeIcon icon={faFlask} size={15}/> 
+          {experiment.name}
+        </Text>
+        <Text style={styles.date}>
+          <FontAwesomeIcon icon={faCalendarCheck} size={15}/>  
+          {formatedDate}</Text>
+        <Text style={styles.description}>
+          <FontAwesomeIcon icon={faCommentDots} size={15}/>          
+          {truncatedDescription}</Text>
 
 
       </View>
@@ -34,10 +44,10 @@ export function Summary({experiment}: {experiment: Experiment}) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: "#D3D3D3",
-    borderColor: "#E5E5E5",
+    backgroundColor: "#FFC904",
+    borderColor: "black",
     borderRadius: 5,
-    borderWidth: 10,
+    borderWidth: 2,
     flexDirection: "row",
     marginLeft: 10,
     marginRight: 10,
@@ -48,5 +58,27 @@ const styles = StyleSheet.create({
     color:"White",
     flex: 2,
     paddingRight: 10
+  },
+  type: {
+    fontSize: 15,         
+    fontWeight: 'bold',   
+    fontFamily: 'Arial',
+    color: '#333', 
+    margin: 2 
+  },
+  name:{
+    fontSize: 14,
+    margin: 2 
+  },
+  date:{
+    fontSize: 14,
+    margin: 2 
+  },
+  description:{
+    fontSize: 13,
+    fontStyle: "italic",
+    margin: 2 
   }
+
+  
 });
