@@ -1,12 +1,12 @@
 import { Button } from "@/components/button";
-import { DataPoint, RGBcolor, Spot, SpotType } from "@/types/data";
+import { setSpotColor } from "@/components/canvas";
+import { DataPoint, Spot, SpotType } from "@/types/data";
 import { getDataPoint, saveDataPoint, serialize } from "@/utilities/storage";
-import { calcConc } from "@/utilities/analysis";
 import { faArrowLeft, faCheck, faQuestion, faWandMagicSparkles, faXmark } from "@fortawesome/free-solid-svg-icons";
-import { Canvas, Circle, ColorType, Fill, Group, Image, matchFont, Text as SkiaText, useImage, /*SkSurface, Skia*/} from '@shopify/react-native-skia';
+import { Canvas, Circle, DashPathEffect, Fill, FontStyle, Group, Image, Paragraph, RoundedRect, useImage, Skia} from '@shopify/react-native-skia';
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, { useAnimatedStyle, useDerivedValue, useSharedValue } from "react-native-reanimated";
 
@@ -16,6 +16,9 @@ export default function CanvasScreen() {
 
   const router = useRouter();
   const {experimentId, dataId} = useLocalSearchParams<{experimentId:string, dataId:string}>();
+
+
+  const [isSpinning, setIsSpinning] = useState(false);
 
 
   const [data, setData] = useState<null|DataPoint>(null);
@@ -88,7 +91,7 @@ export default function CanvasScreen() {
 
 
   const [selectedOverlayId, setSelectedOverlayId] = useState<number>();
-  const [selectedOverlayType, setSelectedOverlayType] = useState<SpotType>("reference");
+  const [selectedOverlayType, setSelectedOverlayType] = useState<SpotType>("baseline");
 
   const selectedOverlayX = useSharedValue(0);
   const selectedOverlayY = useSharedValue(0);
@@ -121,7 +124,6 @@ export default function CanvasScreen() {
 
 
   const pointer = useAnimatedStyle(() => {
-    //const radius = spotRadius.value;
     const radius = canvasDimension.value.width / 5;
     return {
       position: "absolute",
@@ -151,12 +153,6 @@ export default function CanvasScreen() {
 
 
   const fontFamily = Platform.select({ ios: "Helvetica", default: "serif" });
-  const font = matchFont({
-    fontFamily,
-    fontSize: 50,
-    fontStyle: "normal",
-    fontWeight: "bold"
-  });
 
 
   // Ensures the data point and image are
@@ -177,13 +173,20 @@ export default function CanvasScreen() {
   const add_ = () => {
 
     const newSpot: Spot = {
-      type: "reference",
+      type: "baseline",
       area: {
         x: image.width()/2,
         y: image.height()/2,
         r: 100
+      },
+      color: {
+        red: 0,
+        green: 0,
+        blue: 0
       }
     }
+
+    setSpotColor(newSpot, image);
 
     const newData = {...data};
     newData.spots.push(newSpot);
@@ -210,135 +213,72 @@ export default function CanvasScreen() {
     }
   }
 
+
   const toggle_ = () => {
-    setSelectedOverlayType(selectedOverlayType === "reference" ? "sample" : "reference");
+    setSelectedOverlayType(
+      selectedOverlayType === "baseline" ? "sample":
+      selectedOverlayType === "sample" ? "white":
+      selectedOverlayType === "white" ? "black":
+      "baseline"
+    );
   }
 
 
-  const save_ = (spotId: number) => {
+  const save_ = async (spotId: number) => {
+    setIsSpinning(true);
 
-    const newData = {...data};
-    //newData.spots[spotId].area.x = (selectedOverlayX.value - framePositionX.value) / frameScale.value;
-    //newData.spots[spotId].area.y = (selectedOverlayY.value - framePositionY.value) / frameScale.value;
     const scale = frameScale.value;
     console.log(`Frame Position (X, Y): (${framePositionX.value}, ${framePositionY.value})`);
     console.log(`Frame Scale: ${scale}`);
     console.log(`Overlay Position (X, Y): (${selectedOverlayX.value}, ${selectedOverlayY.value})`);
-    newData.spots[spotId].type = selectedOverlayType;
-    newData.spots[spotId].area.x = selectedOverlayX.value / scale - framePositionX.value;
-    newData.spots[spotId].area.y = selectedOverlayY.value / scale - framePositionY.value;
-    newData.spots[spotId].area.r = spotRadius.value;
-    console.log(`X => ${selectedOverlayX.value / scale - framePositionX.value}`);
-    console.log(`Y => ${selectedOverlayY.value / scale - framePositionY.value}`);
-    console.log(`R => ${spotRadius}`);
+
+    const newData = {...data};
+    const spot = newData.spots[spotId];
+    spot.type = selectedOverlayType;
+    spot.area.x = Math.round(selectedOverlayX.value / scale - framePositionX.value);
+    spot.area.y = Math.round(selectedOverlayY.value / scale - framePositionY.value);
+    spot.area.r = spotRadius.value;
 
     console.log(`Data: ${serialize(newData)}`);
 
-    // Needs logic to only run this for sample spot and not reference, also to select test type (igg/amonia)
-    // It currently assumes all spots are sample and uses a hardcoded reference color
-    // Also needs to be able to look up the color of the reference spots
-    // currently it just takes color from a point, add averages later (image.readPixels() from skImage?)
-    // 
-    // ===>
-    //
-    //     * Assume test type is always "IgG". The type of test is set on the experiment screen.
-    //     * Each spot of DataPoint object has a type "reference" or "sample" through "spot.type".
-    //     * Each spot of DataPoint object has image coordinates (spot center) through "spot.area.x" and "spot.area.y".
-    //     * Each spot also has radius through "spot.area.r".
+    console.log(`Spot Type: ${spot.type}`);
+    console.log(`Spot X Coordinate: ${spot.area.x}`);
+    console.log(`Spot Y Coordinate: ${spot.area.y}`);
 
+    setSpotColor(spot, image);
 
-    // *** No need to draw image on canvas to read the pixels. ***
+    // If a reference spot has been updated
+    // need to delete any sample spot results.
 
-    //const surface = Skia.Surface.Make(image.width(), image.height());
-    //const canvas = surface.getCanvas();
-    //canvas.drawImage(image, 0, 0); // draw image to the canvas
-
-    //const snapshot = surface.makeImageSnapshot();
-    //const pixelData = snapshot.readPixels();
-    //console.log(`PIXELS: ${pixelData.length}`);
-
-    // ***********************************************************
-
-
-    const imageInfo = image.getImageInfo();
-    console.log("Image Info:");
-    console.log(imageInfo);
-
-    const pixelData = image.readPixels();
-    if (pixelData !== null && imageInfo.colorType === ColorType.RGBA_8888) {
-
-
-      console.log(`PIXELS: ${pixelData.length}`);
-
-      console.log(`PIXEL TEST: ${pixelData[0]}`);
-      console.log(`PIXEL TEST: ${pixelData[1]}`);
-      console.log(`PIXEL TEST: ${pixelData[10]}`);
-      console.log(`PIXEL TEST: ${pixelData[100]}`);
-      console.log(`PIXEL TEST: ${pixelData[1000]}`);
-      console.log(`PIXEL TEST: ${pixelData[10000]}`);
-
-
-      //const references = [];
-      //const samples = [];
-
-      for (const spot of newData.spots) {
-        console.log(`Spot Type: ${spot.type}`);
-        console.log(`Spot X Coordinate: ${spot.area.x}`);
-        console.log(`Spot Y Coordinate: ${spot.area.y}`);
-
-        const i = (Math.round(spot.area.y) * image.width() + Math.round(spot.area.x)) * 4;
-        console.log(`INDEX: ${i}`);
-
-        const red = pixelData[i];
-        const green = pixelData[i + 1];
-        const blue = pixelData[i + 2];
-        const alpha = pixelData[i + 3];
-
-        console.log(`Pixel: RED=${red} GREEN=${green} BLUE=${blue} ALPHA=${alpha}`);
-
-        const color: RGBcolor = {
-          red: red,
-          green: green,
-          blue: blue
-        };
-
-        spot.color = color;
-      }
-
-
-      // I think the indices are off, not sure if this formula is correct, need to do more research into how pixelData stores things
-      //const index = Math.round((newData.spots[spotId].area.y * image.width() + newData.spots[spotId].area.x) * 4);
-      const index = (Math.round(newData.spots[spotId].area.y) * image.width() + Math.round(newData.spots[spotId].area.x)) * 4;
-      console.log(`INDEX: ${index}`);
-      const r = pixelData[index];
-      const g = pixelData[index + 1];
-      const b = pixelData[index + 2];
-      console.log(`Pixel: R=${r} G=${g} B=${b}`);
-      const conc = calcConc([88,34,0], [r,g,b]);
-      console.log(`CONCENTRATION: ${conc}`);
-      newData.concentration = {
-        value: conc,
-        units: "ppm"
+    if (spot.type !== "sample") {
+      for (const spot_ of newData.spots) {
+        if (spot_.type === "sample") {
+          delete spot_.calculation;
+        }
       }
     }
 
-
-    saveDataPoint(parseInt(experimentId), newData);
+    await saveDataPoint(parseInt(experimentId), newData);
 
     setData(newData);
     setSelectedOverlayId(undefined);
+
+    setIsSpinning(false);
   }
 
 
-  const delete_ = (spotId: number) => {
+  const delete_ = async (spotId: number) => {
+    setIsSpinning(true);
 
     const newData = {...data};
     newData.spots = newData.spots.filter((_, index)=>{return index !== spotId});
 
-    saveDataPoint(parseInt(experimentId), newData);
+    await saveDataPoint(parseInt(experimentId), newData);
 
     setData(newData);
     setSelectedOverlayId(undefined);
+
+    setIsSpinning(false);
   }
 
 
@@ -519,8 +459,49 @@ export default function CanvasScreen() {
   });
 
 
+  const DottedCircle = (spot: Spot) => {
+    return (
+      <Circle cx={spot.area.x} cy={spot.area.y} r={spot.area.r} style="stroke" strokeWidth={2} color="black">
+        <DashPathEffect intervals={[15, 15]} phase={0} />
+      </Circle>
+    );
+  };
+
+
+  const SpotLabel = (spotId: number, spot: Spot) => {
+
+    const maxLineWidth = 400;
+
+    const paragraph = Skia.ParagraphBuilder
+    .Make({
+      ellipsis: "..",
+      maxLines: 1
+    })
+    .pushStyle({
+      color: Skia.Color("black"),
+      fontFamilies: [fontFamily],
+      fontSize: 50,
+      fontStyle: FontStyle.Bold
+    })
+    .addText(`${spotId}. ${spot.type}`)
+    .build();
+
+    paragraph.layout(maxLineWidth);
+    const actualLineWidth = paragraph.getLongestLine();
+    const actualLineHeight = paragraph.getHeight();
+
+    return (
+      <>
+        <RoundedRect x={spot.area.x-15} y={spot.area.y-15} width={actualLineWidth+30} height={actualLineHeight+30} r={15} color="white" opacity={0.5} />
+        <Paragraph paragraph={paragraph} x={spot.area.x} y={spot.area.y} width={maxLineWidth} />
+      </>
+    );
+  };
+
+
   return (
     <>
+
       <View style={styles.header}>
         <Button icon={faArrowLeft} margin={10} onPress={()=>router.back()} />
         <Text style={styles.title}>Canvas</Text>
@@ -537,17 +518,26 @@ export default function CanvasScreen() {
 
           <Group transform={imageTransform}>
             <Image image={image} fit="none" x={0} y={0} width={image.width()} height={image.height()} />
-            {data.spots.filter((_, index)=>{return index !== selectedOverlayId}).map((spot, index) => (
+            {data.spots.map((spot, index) => (
             <Group key={index}>
-            <Circle cx={spot.area.x} cy={spot.area.y} r={spot.area.r} color="white" opacity={0.5} />
+            {index !== selectedOverlayId ?
+            <>
+            <Circle cx={spot.area.x} cy={spot.area.y} r={spot.area.r} color="white" opacity={0.25} />
             <Circle cx={spot.area.x} cy={spot.area.y} r={spot.area.r} style="stroke" color="black" />
-            <SkiaText x={spot.area.x} y={spot.area.y} font={font} text={`${index}`} />
+            {SpotLabel(index, spot)}
+            </>
+            :
+            DottedCircle(spot)
+            }
             </Group>
             ))}
           </Group>
 
           {selectedOverlayId !== undefined &&
-          <Circle cx={selectedOverlayX} cy={selectedOverlayY} r={selectedOverlayR} style="stroke" color="black" />
+          <>
+          <Circle cx={selectedOverlayX} cy={selectedOverlayY} r={selectedOverlayR} style="stroke" strokeWidth={2} color="white" opacity={0.5} />
+          <Circle cx={selectedOverlayX} cy={selectedOverlayY} r={selectedOverlayR} style="stroke" strokeWidth={1} color="black" />
+          </>
           }
 
 
@@ -604,6 +594,12 @@ export default function CanvasScreen() {
         />
       </View>
 
+      <Modal visible={isSpinning} transparent={true} animationType="fade">
+      <View style={styles.modal}>
+        <ActivityIndicator animating={isSpinning} size="large" color="white" />
+      </View>
+      </Modal>
+
     </>
   );
 }
@@ -629,6 +625,18 @@ const styles = StyleSheet.create({
   },
   canvas: {
     flex: 1
+  },
+  modal: {
+    alignItems: "center",
+    backgroundColor: "black",
+    bottom: 0,
+    flex: 1,
+    justifyContent: "center",
+    left: 0,
+    opacity: 0.5,
+    position: "absolute",
+    right: 0,
+    top: 0,
   },
   modbar: {
     alignItems: "center",

@@ -58,8 +58,7 @@ export async function createExperiment() {
     type: "IgG",
     description: "",
     notes: "",
-    data: [],
-    result: null
+    data: []
   };
   labbook.experiments.push(experiment);
   labbook.unsaved.push(experiment.id);
@@ -91,7 +90,7 @@ export async function saveExperiment(updates: Experiment) {
   experiment.date = updates.date;
   experiment.description = updates.description;
   experiment.notes = updates.notes;
-  experiment.result = updates.result;
+  experiment.data = updates.data;
   labbook.unsaved = labbook.unsaved.filter((element)=>{return element !== updates.id});
   await storeLabBook(labbook);
   return true;
@@ -131,8 +130,7 @@ export async function createDataPoint(experimentId: number, image: string) {
   const dataPoint: DataPoint = {
     id: id,
     image: storedImage,
-    spots: [],
-    concentration: null
+    spots: []
   };
   experiment.data.push(dataPoint);
   await storeLabBook(labbook);
@@ -153,7 +151,6 @@ export async function saveDataPoint(experimentId: number, updates: DataPoint) {
     return false;
   }
   dataPoint.spots = updates.spots;
-  dataPoint.concentration = updates.concentration;
   await storeLabBook(labbook);
   return true;
 }
@@ -256,6 +253,7 @@ async function storeImage(id: number, image: string) {
   await FileSystem.copyAsync({ from: image, to: newPath });
   return newPath;
 }
+
 
 async function unstoreImage(image: string) {
   const exists = await FileSystem.getInfoAsync(image).then(info => info.exists).catch(() => false);

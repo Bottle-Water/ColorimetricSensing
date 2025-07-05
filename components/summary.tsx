@@ -1,4 +1,3 @@
-import { Visualization } from "@/components/visualization";
 import { Experiment } from "@/types/experiment";
 import { StyleSheet, Text, View } from "react-native";
 import { faCalendarCheck,faCommentDots } from "@fortawesome/free-regular-svg-icons";
@@ -34,7 +33,10 @@ export function Summary({experiment}: {experiment: Experiment}) {
       </View>
 
 
-      <Visualization experiment={experiment} />
+      {/*Show PDF*/}
+      <View style={styles.report}>
+        <Text>Report Not Ready</Text>
+      </View>
 
 
     </View>
@@ -78,7 +80,10 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontStyle: "italic",
     margin: 2 
+  },
+  report: {
+    alignItems: "center",
+    flex: 1,
+    justifyContent: "center"
   }
-
-  
 });

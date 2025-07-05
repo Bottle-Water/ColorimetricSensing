@@ -1,6 +1,5 @@
 import { Button } from "@/components/button";
-import { Visualization } from "@/components/visualization";
-import { DataPoint } from "@/types/data";
+import { DataPoint, RGBcolor, SampleSpot } from "@/types/data";
 import { Experiment } from "@/types/experiment";
 import { deleteDataPoint, deleteExperiment, getExperiment, isUnsavedExperiment, saveExperiment, serialize } from "@/utilities/storage";
 import { faImage, faSave } from "@fortawesome/free-regular-svg-icons";
@@ -9,6 +8,8 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
+import { Canvas, checkReadiness, isComplete, performCalculations } from "@/components/canvas";
+import { SampleTable } from "@/components/table";
 
 
 export default function ExperimentScreen() {
@@ -133,6 +134,24 @@ export default function ExperimentScreen() {
   };
 
 
+  const calculate_ = async (readiness: {whiteColor: RGBcolor, blackColor: RGBcolor, baselineColor: RGBcolor, sampleSpots: SampleSpot[]}) => {
+
+    let success = true;
+
+    performCalculations(readiness.whiteColor, readiness.blackColor, readiness.baselineColor, readiness.sampleSpots);
+
+    const newExperiment = {...experiment};
+
+    success &&= await saveExperiment(newExperiment)
+    if (!success) {
+      Alert.alert("Save was unsuccessful.");
+      return;
+    }
+
+    setExperiment(newExperiment);
+  }
+
+
   const delete_ = async () => {
     if (!await deleteExperiment(experiment.id)) {
       Alert.alert("Delete was unsuccessful.");
@@ -238,7 +257,7 @@ export default function ExperimentScreen() {
           <View style={styles.splitpanelright}>
 
 
-            <Visualization experiment={experiment} />
+            {/*Show PDF*/}
 
 
           </View>
@@ -308,6 +327,47 @@ export default function ExperimentScreen() {
             style={notesInputStyle}
           />
         </View>
+
+
+        {experiment.data.map((dataPoint)=>{
+          return {dataPoint: dataPoint, readiness: checkReadiness(dataPoint.spots)}
+        }).map(({dataPoint, readiness}, index)=>
+        <View key={`vis-${dataPoint.id}-${index+1}`} style={styles.resultpanel}>
+
+          <Canvas data={dataPoint} />
+
+          {readiness.errors.length > 0 ?
+
+
+          <View style={[styles.scrollcontainer, styles.verticalcontainer]}>
+            <Text>Actions:</Text>
+            {readiness.errors.map((error, index) =>
+              <Text key={`error-${dataPoint.id}-${index+1}`}>{error}</Text>
+            )}
+          </View>
+
+
+          : !isComplete(readiness.sampleSpots) ?
+
+
+          <View style={styles.scrollcontainer}>
+          <Pressable style={styles.button} onPress={()=>{calculate_(readiness)}}>
+            <Text>Is ready, Press to generate!</Text>
+          </Pressable>
+          </View>
+
+
+          :
+
+
+          <SampleTable spots={readiness.sampleSpots} />
+
+
+          }
+        </View>
+        )}
+
+
 
 
       </ScrollView>
@@ -487,5 +547,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flexDirection: "row",
     justifyContent: "flex-end"
+  },
+  resultpanel: {
+    margin: 10
+  },
+  button: {
+    backgroundColor: "#FFC904",
+    padding: 10
+  },
+  scrollcontainer: {
+    alignItems: "center",
+    flex: 1,
+    marginTop: 10
+  },
+  verticalcontainer: {
+    flexDirection: "column"
   }
 });

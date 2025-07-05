@@ -1,4 +1,4 @@
-import { Concentration, DataPoint } from "@/types/data";
+import { DataPoint } from "@/types/data";
 
 
 export type Experiment = {
@@ -8,8 +8,7 @@ export type Experiment = {
   type: ExperimentType,
   description: string,
   notes: string,
-  data: DataPoint[],
-  result: Concentration | null
+  data: DataPoint[]
 }
 
 

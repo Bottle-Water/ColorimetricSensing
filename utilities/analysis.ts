@@ -1,4 +1,18 @@
-function calcConc(reference: [number, number, number], sample: [number, number, number]) {
+import { Calculation, RGBcolor } from "@/types/data";
+
+function colorAnalysis(whiteColor: RGBcolor, blackColor: RGBcolor, baselineColor: RGBcolor, sampleColor: RGBcolor) {
+
+    const reference = [baselineColor.red, baselineColor.green, baselineColor.blue];
+    const sample = [sampleColor.red, sampleColor.green, sampleColor.blue];
+
+    const result: Calculation = {
+      distance: 0,
+      concentration: {
+        value: 0,
+        units: "mg/mL"
+      }
+    }
+
     console.log(`START CALC`);
     //todo
     //make it also take in a datapoint and update that
@@ -59,8 +73,10 @@ function calcConc(reference: [number, number, number], sample: [number, number, 
 
     console.log(`END CALC`);
 
-  return concentration;
+    result.distance = distance;
+    result.concentration.value = concentration;
+    return result;
 };
 
 
-export { calcConc };
+export { colorAnalysis };
