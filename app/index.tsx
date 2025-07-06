@@ -1,4 +1,6 @@
 import { Button } from "@/components/button";
+import LabFlaskIcon from "@/components/flaskicon";
+import SearchWarningIcon from "@/components/searchwarningicon";
 import { Summary } from "@/components/summary";
 import { Experiment } from "@/types/experiment";
 import { createExperiment, debugStorage, deletedUnsavedExperiments, getExperiments, serialize } from "@/utilities/storage";
@@ -91,6 +93,21 @@ export default function LabBookScreen() {
         />
       </View>
 
+      {allExperiments.length === 0 ?
+
+      <View style={{flex: 1, flexDirection:"column", alignItems:"center", justifyContent:"center"}}>
+        <LabFlaskIcon />
+        <Text style={{fontStyle:"italic", fontWeight:"thin",fontSize:20, color:"gray"}}>Welcome to your lab book!</Text>
+      </View>
+
+      : filteredExperiments.length === 0 ?
+
+      <View style={{flex: 1, flexDirection:"column", alignItems:"center", justifyContent:"center"}}>
+        <SearchWarningIcon />
+        <Text style={{fontStyle:"italic", fontWeight:"thin",fontSize:20, color:"gray"}}>No matching result found!</Text>
+      </View>
+
+      :
 
       <ScrollView>
         {filteredExperiments.map((experiment) => (
@@ -102,6 +119,7 @@ export default function LabBookScreen() {
         </Pressable>
         ))}
       </ScrollView>
+      }
 
 
       <View style={styles.searchbar}>

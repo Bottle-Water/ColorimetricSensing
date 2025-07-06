@@ -30,7 +30,7 @@ export function Summary({experiment}: {experiment: Experiment}) {
         </Text>
 
         <Text style={styles.description}>
-          <Text>  <FontAwesomeIcon icon={faCommentDots} size={15}/> </Text>
+          <Text> <FontAwesomeIcon icon={faCommentDots} size={15}/> </Text>
           {truncatedDescription}
         </Text>
 
