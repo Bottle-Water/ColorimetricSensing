@@ -2,8 +2,9 @@ import { Button } from "@/components/button";
 import { DataPoint, RGBcolor, SampleSpot } from "@/types/data";
 import { Experiment } from "@/types/experiment";
 import { deleteDataPoint, deleteExperiment, getExperiment, isUnsavedExperiment, saveExperiment, serialize } from "@/utilities/storage";
+import { FontAwesomeIcon } from "@fortawesome/react-native-fontawesome";
 import { faImage, faSave } from "@fortawesome/free-regular-svg-icons";
-import { faArrowLeft, faPenToSquare, faQuestion, faShare, faTrash, faXmark } from "@fortawesome/free-solid-svg-icons";
+import { faArrowLeft, faExclamation, faPenToSquare, faQuestion, faShare, faTrash, faTriangleExclamation, faXmark } from "@fortawesome/free-solid-svg-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
@@ -334,15 +335,23 @@ export default function ExperimentScreen() {
         }).map(({dataPoint, readiness}, index)=>
         <View key={`vis-${dataPoint.id}-${index+1}`} style={styles.resultpanel}>
 
+          {index === 0 &&
+          <View>
+            <Text style={styles.analysistitle}>Analysis Results</Text> 
+          </View>
+          }
+
           <Canvas data={dataPoint} />
 
           {readiness.errors.length > 0 ?
 
 
-          <View style={[styles.scrollcontainer, styles.verticalcontainer]}>
-            <Text>Actions:</Text>
+          <View style={[styles.scrollcontainer, styles.verticalcontainer,styles.errorBox]}>
+            <Text>
+              <FontAwesomeIcon icon={faTriangleExclamation} size={15} style={{ color: 'red' }}/>
+            </Text>
             {readiness.errors.map((error, index) =>
-              <Text key={`error-${dataPoint.id}-${index+1}`}>{error}</Text>
+              <Text style={{ color: 'red' }} key={`error-${dataPoint.id}-${index+1}`}>{error}</Text>
             )}
           </View>
 
@@ -352,7 +361,7 @@ export default function ExperimentScreen() {
 
           <View style={styles.scrollcontainer}>
           <Pressable style={styles.button} onPress={()=>{calculate_(readiness)}}>
-            <Text>Is ready, Press to generate!</Text>
+            <Text> Results are ready, Press to generate!</Text>
           </Pressable>
           </View>
 
@@ -460,7 +469,8 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   content: {
-    margin: 10
+    margin: 10,
+    backgroundColor: "#F9F9ED",
   },
   name: {
     backgroundColor: "#f0f0f0",
@@ -553,7 +563,10 @@ const styles = StyleSheet.create({
   },
   button: {
     backgroundColor: "#FFC904",
-    padding: 10
+    padding: 10,
+    borderWidth: 2,
+    borderColor: "black",
+    borderRadius:10
   },
   scrollcontainer: {
     alignItems: "center",
@@ -561,6 +574,20 @@ const styles = StyleSheet.create({
     marginTop: 10
   },
   verticalcontainer: {
-    flexDirection: "column"
-  }
+    flexDirection: "column",
+  },
+  analysistitle:{
+    alignSelf: "center",
+    fontSize: 20,
+    fontWeight: "bold",
+    padding: 10,
+  },
+  errorBox: {
+  borderWidth: 1,
+  borderColor: 'red',
+  backgroundColor: '#ffe6e6',
+  padding: 10,
+  borderRadius: 8,
+  marginVertical: 8
+},
 });

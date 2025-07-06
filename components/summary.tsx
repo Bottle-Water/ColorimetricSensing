@@ -18,16 +18,21 @@ export function Summary({experiment}: {experiment: Experiment}) {
 
 
         <Text style={styles.type}>{experiment.type}(#{experiment.id})</Text>
+
         <Text style={styles.name}>
-          <FontAwesomeIcon icon={faFlask} size={15}/> 
+          <Text> <FontAwesomeIcon icon={faFlask} size={15}/> </Text>
           {experiment.name}
         </Text>
+
         <Text style={styles.date}>
-          <FontAwesomeIcon icon={faCalendarCheck} size={15}/>  
-          {formatedDate}</Text>
+          <Text> <FontAwesomeIcon icon={faCalendarCheck} size={15}/> </Text>
+          {formatedDate}
+        </Text>
+
         <Text style={styles.description}>
-          <FontAwesomeIcon icon={faCommentDots} size={15}/>          
-          {truncatedDescription}</Text>
+          <Text>  <FontAwesomeIcon icon={faCommentDots} size={15}/> </Text>
+          {truncatedDescription}
+        </Text>
 
 
       </View>
