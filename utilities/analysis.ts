@@ -14,16 +14,66 @@ function colorAnalysis(whiteColor: RGBcolor, blackColor: RGBcolor, baselineColor
     }
 
     console.log(`START CALC`);
-    //todo
-    //make it also take in a datapoint and update that
 
-    //Simplified CieLAB conversion, needs white value to be truly accurate
-    //make this its own function later
-    const [r255, g255, b255] = sample;
+    // White balancing
+    const sampleBalanced = whiteBalance(whiteColor, blackColor, sampleColor);
+    const baselineBalanced = whiteBalance(whiteColor, blackColor, baselineColor);
+
+    // CieLAB conversion
+    const sampleLAB = RGBtoCIELAB(sampleBalanced);
+    const baselineLAB = RGBtoCIELAB(baselineBalanced);
+
+    //Euclidean distance calculation
+    const distance = Math.sqrt(
+        Math.pow(baselineLAB[0]-sampleLAB[0], 2) +
+        Math.pow(baselineLAB[1]-sampleLAB[1], 2) +
+        Math.pow(baselineLAB[2]-sampleLAB[2], 2)
+        );
+
+    //Snap to estimated concentration based on distance
+    //TO DO: these comparison values are not definite, need the real ones from Mahdi
+    let concentration;
+    if (distance < 5){
+        concentration = 0.010;}
+    else if (distance < 10){
+        concentration = 0.050;}
+    else if (distance < 15){
+        concentration = 0.100;}
+    else{
+        concentration = 1.000;}
+
+    console.log(`END CALC`);
+
+    result.distance = distance;
+    result.concentration.value = concentration;
+    return result;
+};
+
+function whiteBalance(whiteColor: RGBcolor, blackColor: RGBcolor, toBalance: RGBcolor) {
+    const r = 255 * ((toBalance.red - blackColor.red)/(whiteColor.red - blackColor.red + 0.00001));
+    const g = 255 * ((toBalance.green - blackColor.green)/(whiteColor.green - blackColor.green + 0.00001));
+    const b = 255 * ((toBalance.blue - blackColor.blue)/(whiteColor.blue - blackColor.blue + 0.00001));
+
+    const balancedColor: RGBcolor = {
+          red: r,
+          green: g,
+          blue: b
+        };
+
+    return balancedColor;
+};
+
+function RGBtoCIELAB(toConvert: RGBcolor) {
+
+    const [r255, g255, b255] = [toConvert.red, toConvert.green, toConvert.blue];
+
+    //Normalize between 0 and 1
     const [r, g, b] = [r255, g255, b255].map(v => v / 255);
     const compand = (v: number) =>
         v > 0.04045 ? Math.pow((v + 0.055) / 1.055, 2.4) : v / 12.92;
     const [rLin, gLin, bLin] = [r, g, b].map(compand);
+
+    //Convert to XYZ colorspace
     const x = rLin * 0.4124 + gLin * 0.3576 + bLin * 0.1805;
     const y = rLin * 0.2126 + gLin * 0.7152 + bLin * 0.0722;
     const z = rLin * 0.0193 + gLin * 0.1192 + bLin * 0.9505;
@@ -34,49 +84,14 @@ function colorAnalysis(whiteColor: RGBcolor, blackColor: RGBcolor, baselineColor
     const fx = f(xr);
     const fy = f(yr);
     const fz = f(zr);
-    const L_sample = 116 * fy - 16;
-    const a_sample = 500 * (fx - fy);
-    const b_sample = 200 * (fy - fz);
 
-    const [r255r, g255r, b255r] = reference;
-    const[rr, gr, br] = [r255r, g255r, b255r].map(v => v / 255);
-    const compandr = (v: number) =>
-        v > 0.04045 ? Math.pow((v + 0.055) / 1.055, 2.4) : v / 12.92;
-    const [rLinr, gLinr, bLinr] = [rr, gr, br].map(compandr);
-    const xq = rLinr * 0.4124 + gLinr * 0.3576 + bLinr * 0.1805;
-    const yq = rLinr * 0.2126 + gLinr * 0.7152 + bLinr * 0.0722;
-    const zq = rLinr * 0.0193 + gLinr * 0.1192 + bLinr * 0.9505;
-    const [xnr, ynr, znr] = [0.95047, 1.00000, 1.08883];
-    const [xrr, yrr, zrr] = [xq / xnr, yq / ynr, zq / znr];
-    const fq = (t: number) =>
-      t > 0.008856 ? Math.cbrt(t) : (7.787 * t) + (16 / 116);
-    const fxr = fq(xrr);
-    const fyr = fq(yrr);
-    const fzr = fq(zrr);
-    const L_ref = 116 * fyr - 16;
-    const a_ref = 500 * (fxr - fyr);
-    const b_ref = 200 * (fyr - fzr);
+    //Convert to LAB colorspace
+    const L = 116 * fy - 16;
+    const a = 500 * (fx - fy);
+    const bl = 200 * (fy - fz);
 
-    // for tuning it if we ever get labeled data
-    const multiplier = 1;
-    const offset = 0;
-
-    //Euclidean distance calculation
-    const distance = Math.sqrt(
-        Math.pow(L_sample-L_ref, 2) +
-        Math.pow(a_sample-a_ref, 2) +
-        Math.pow(b_sample-b_ref, 2)
-        );
-
-    //It probably also needs to be regularized but again, labeled data
-    const concentration = multiplier * distance + offset;
-
-    console.log(`END CALC`);
-
-    result.distance = distance;
-    result.concentration.value = concentration;
-    return result;
+    return [L,a,bl];
 };
 
 
-export { colorAnalysis };
+export { colorAnalysis, RGBtoCIELAB, whiteBalance };
