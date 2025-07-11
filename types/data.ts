@@ -1,6 +1,7 @@
 export type Calculation = {
   distance: number,
-  concentration: Concentration
+  concentration: Concentration,
+  confidence: number
 }
 
 
