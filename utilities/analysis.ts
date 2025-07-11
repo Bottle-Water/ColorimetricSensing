@@ -10,7 +10,8 @@ function colorAnalysis(whiteColor: RGBcolor, blackColor: RGBcolor, baselineColor
       concentration: {
         value: 0,
         units: "mg/mL"
-      }
+      },
+      confidence: 0
     }
 
     console.log(`START CALC`);
@@ -31,21 +32,55 @@ function colorAnalysis(whiteColor: RGBcolor, blackColor: RGBcolor, baselineColor
         );
 
     //Snap to estimated concentration based on distance
-    //TO DO: these comparison values are not definite, need the real ones from Mahdi
+    // Cutoffs determined by going halfway between values given by mahdi
     let concentration;
-    if (distance < 5){
-        concentration = 0.010;}
-    else if (distance < 10){
-        concentration = 0.050;}
-    else if (distance < 15){
-        concentration = 0.100;}
+    let stddev;
+    let refdist;
+    if (distance < 2.36628){
+        concentration = 0.001;
+        stddev = 0.72167;
+        refdist = 1.37813;
+    }
+    else if (distance < 4.56949){
+        concentration = 0.010;
+        stddev = 1.75260;
+        refdist = 3.35442;
+    }
+    else if (distance < 9.01636){
+        concentration = 0.050;
+        stddev = 1.84516;
+        refdist = 5.78455;
+    }
+    else if (distance < 12.870835){
+        concentration = 0.1000;
+        stddev = 1.62919;
+        refdist = 12.24817;
+    }
+    else if (distance < 15.38965){
+        concentration = 0.5000;
+        stddev = 1.78440;
+        refdist = 13.49350;
+    }
+    else if (distance < 18.7166){
+        concentration = 1.0000;
+        stddev = 1.74072;
+        refdist = 17.28580;
+    }
     else{
-        concentration = 1.000;}
+        concentration = 5.000;
+        stddev = 1.14431;
+        refdist = 20.14740;
+    }
+
+    const z = ((distance - refdist) / stddev);
+    const confidence = Math.exp(-0.5 * z * z) * 100;
+    console.log(confidence);
 
     console.log(`END CALC`);
 
     result.distance = distance;
     result.concentration.value = concentration;
+    result.confidence = confidence;
     return result;
 };
 
