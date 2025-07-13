@@ -35,7 +35,23 @@ export default function CanvasScreen() {
           router.back();
           return;
         }
-        setData(data);
+
+        // clear all existing calculations whenever canvas is opened, so users must regenerate analysis data after editing spots
+        const newData = {...data};
+        let hasCalculations = false;
+        for (const spot of newData.spots) {
+          if (spot.type === "sample" && spot.calculation !== undefined) {
+            delete spot.calculation;
+            hasCalculations = true; // mark that there was already data
+          }
+        }
+
+        // save the cleared data if there were calculations to clear
+        if (hasCalculations) {
+          await saveDataPoint(parseInt(experimentId), newData);
+        }
+
+        setData(newData);
       }
       fun();
 
