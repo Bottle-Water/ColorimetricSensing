@@ -2,6 +2,7 @@ import { DataPoint } from "@/types/data";
 import { Experiment } from "@/types/experiment";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as FileSystem from "expo-file-system";
+import { SkImage } from "@shopify/react-native-skia";
 
 
 export function serialize(object: any) {
@@ -177,6 +178,18 @@ export async function deleteDataPoint(experimentId: number, id: number) {
     await storeLabBook(labbook);
   }
   return deleted;
+}
+
+
+export async function tempImage(image: SkImage) {
+  let uri: null | string = FileSystem.cacheDirectory + `report_${Date.now()}.png`;
+  try {
+    await FileSystem.writeAsStringAsync(uri, image.encodeToBase64(), {encoding: FileSystem.EncodingType.Base64});
+  } catch (error) {
+    console.log(`On creating temp image: ${error}`);
+    uri = null;
+  }
+  return uri;
 }
 
 

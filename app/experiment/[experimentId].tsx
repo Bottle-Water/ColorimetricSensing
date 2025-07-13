@@ -1,16 +1,18 @@
 import { Button } from "@/components/button";
 import { DataPoint, RGBcolor, SampleSpot } from "@/types/data";
 import { Experiment } from "@/types/experiment";
-import { deleteDataPoint, deleteExperiment, getExperiment, isUnsavedExperiment, saveExperiment, serialize } from "@/utilities/storage";
+import { deleteDataPoint, deleteExperiment, getExperiment, isUnsavedExperiment, saveExperiment, serialize, tempImage } from "@/utilities/storage";
 import { FontAwesomeIcon } from "@fortawesome/react-native-fontawesome";
 import { faImage, faSave } from "@fortawesome/free-regular-svg-icons";
-import { faArrowLeft, faExclamation, faPenToSquare, faQuestion, faShare, faTrash, faTriangleExclamation, faXmark } from "@fortawesome/free-solid-svg-icons";
+import { faArrowLeft, faPenToSquare, faQuestion, faShare, faTrash, faTriangleExclamation, faXmark } from "@fortawesome/free-solid-svg-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useState } from "react";
-import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { RefObject, useCallback, useRef, useState } from "react";
+import { ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import { Canvas, checkReadiness, isComplete, performCalculations } from "@/components/canvas";
 import { SampleTable } from "@/components/table";
+import * as Sharing from "expo-sharing";
+import { makeImageFromView } from "@shopify/react-native-skia";
 
 
 export default function ExperimentScreen() {
@@ -18,6 +20,10 @@ export default function ExperimentScreen() {
 
   const router = useRouter();
   const {experimentId} = useLocalSearchParams<{experimentId:string}>();
+
+
+  const [isSpinning, setIsSpinning] = useState(false);
+  const exportRef = useRef<View>(null);
 
 
   const [newMode, setNewMode] = useState(false);
@@ -91,10 +97,41 @@ export default function ExperimentScreen() {
 
 
   const help_ = () => { /* TODO */ };
-  const export_ = () => { /* TODO */ };
+
+
+  // Simple export and share of the screen as a png image.
+  // Better than exporting as a PDF which requires extra
+  // formatting logic and can result in poor placement of
+  // page breaks.
+  const export_ = async () => {
+    setIsSpinning(true);
+
+    if (exportRef.current !== null) {
+
+      const exportImage = await makeImageFromView(exportRef as RefObject<View>);
+      if (exportImage !== null) {
+
+        const uri = await tempImage(exportImage);
+        if (uri !== null) {
+          if (await Sharing.isAvailableAsync()) {
+
+            await Sharing.shareAsync(uri);
+            setIsSpinning(false);
+            return;
+
+          }
+        }
+      }
+    }
+
+    Alert.alert("Unable to export and share");
+
+    setIsSpinning(false);
+  };
 
 
   const save_ = async () => {
+    setIsSpinning(true);
 
     let success = true;
 
@@ -110,6 +147,7 @@ export default function ExperimentScreen() {
     if (!newExperiment) {
       Alert.alert(`Experiment ${experimentId} was not found.`);
       router.back();
+      setIsSpinning(false);
       return;
     }
 
@@ -124,6 +162,7 @@ export default function ExperimentScreen() {
 
     if (!success) {
       Alert.alert("Save was unsuccessful.");
+      setIsSpinning(false);
       return;
     }
 
@@ -132,10 +171,13 @@ export default function ExperimentScreen() {
     setCurrentValues(newExperiment);
     setDataMarkedDeleted([]);
     console.log(`Experiment: ${serialize(experiment)}`);
+
+    setIsSpinning(false);
   };
 
 
   const calculate_ = async (readiness: {whiteColor: RGBcolor, blackColor: RGBcolor, baselineColor: RGBcolor, sampleSpots: SampleSpot[]}) => {
+    setIsSpinning(true);
 
     let success = true;
 
@@ -146,17 +188,24 @@ export default function ExperimentScreen() {
     success &&= await saveExperiment(newExperiment)
     if (!success) {
       Alert.alert("Save was unsuccessful.");
+      setIsSpinning(false);
       return;
     }
 
     setExperiment(newExperiment);
+
+    setIsSpinning(false);
   }
 
 
   const delete_ = async () => {
+    setIsSpinning(true);
+
     if (!await deleteExperiment(experiment.id)) {
       Alert.alert("Delete was unsuccessful.");
     }
+
+    setIsSpinning(false);
     router.back();
   };
 
@@ -210,6 +259,8 @@ export default function ExperimentScreen() {
 
 
       <ScrollView style={styles.content}>
+      {/* Export View */}
+      <View ref={exportRef} collapsable={false}>
 
 
         <View style={styles.field}>
@@ -233,6 +284,10 @@ export default function ExperimentScreen() {
             </View>
 
 
+          </View>
+          <View style={styles.splitpanelright}>
+
+
             <View style={styles.field}>
               <Text style={styles.label}>Date:</Text>
               <Pressable
@@ -252,13 +307,6 @@ export default function ExperimentScreen() {
                 }}
               />
             </View>
-
-
-          </View>
-          <View style={styles.splitpanelright}>
-
-
-            {/*Show PDF*/}
 
 
           </View>
@@ -378,7 +426,7 @@ export default function ExperimentScreen() {
 
 
 
-
+      </View>
       </ScrollView>
 
 
@@ -449,6 +497,13 @@ export default function ExperimentScreen() {
       </View>
 
 
+      <Modal visible={isSpinning} transparent={true} animationType="fade">
+      <View style={styles.modal}>
+        <ActivityIndicator animating={isSpinning} size="large" color="white" />
+      </View>
+      </Modal>
+
+
     </>
   );
 }
@@ -485,8 +540,7 @@ const styles = StyleSheet.create({
     flex: 1
   },
   splitpanelright: {
-    flex: 1,
-    margin: 10
+    flex: 1
   },
   datapanel: {
     backgroundColor: "lightgray",
@@ -583,11 +637,23 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   errorBox: {
-  borderWidth: 1,
-  borderColor: 'red',
-  backgroundColor: '#ffe6e6',
-  padding: 10,
-  borderRadius: 8,
-  marginVertical: 8
-},
+    borderWidth: 1,
+    borderColor: 'red',
+    backgroundColor: '#ffe6e6',
+    padding: 10,
+    borderRadius: 8,
+    marginVertical: 8
+  },
+  modal: {
+    alignItems: "center",
+    backgroundColor: "black",
+    bottom: 0,
+    flex: 1,
+    justifyContent: "center",
+    left: 0,
+    opacity: 0.5,
+    position: "absolute",
+    right: 0,
+    top: 0,
+  }
 });
