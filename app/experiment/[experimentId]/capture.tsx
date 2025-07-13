@@ -5,7 +5,7 @@ import { faFileImage, faLightbulb } from "@fortawesome/free-regular-svg-icons";
 import { faArrowLeft, faCamera, faCheck, faQuestion, faXmark } from "@fortawesome/free-solid-svg-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useRef, useState } from 'react';
-import { Alert, Dimensions, Image, StyleSheet, Text, View } from 'react-native';
+import { Alert, Dimensions, Image, StyleSheet, Text, View, Modal, Pressable } from 'react-native';
 import { Camera, useCameraDevice, useCameraPermission } from 'react-native-vision-camera';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -25,6 +25,7 @@ export default function CaptureScreen() {
   const device = useCameraDevice('back');
   const {hasPermission, requestPermission} = useCameraPermission();
   const [torchState, setTorchState] = useState<'on'|'off'>('off');
+  const [helpModalVisible, setHelpModalVisible] = useState(false);
 
 
   const [imageURI, setImageURI] = useState("");
@@ -98,7 +99,9 @@ export default function CaptureScreen() {
   }
 
 
-  const help_ = () => { /* TODO */ };
+  const help_ = () => { 
+    setHelpModalVisible(true);
+  };
 
 
   const pick = async () => {
@@ -371,6 +374,39 @@ export default function CaptureScreen() {
         </View>
       </View>
 
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={helpModalVisible}
+        onRequestClose={() => setHelpModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Capture Page Help</Text>
+            <Text style={styles.modalText}>
+              This is the capture page, where you take a capture of a test strip for analysis
+              {'\n\n'}
+              • Align the test strip in the guide box, then press the camera button to capture
+              {'\n\n'}
+              • Alternatively, upload a previously taking image of a test strip for analysis with the image icon (note: Uploading unguided scans may affect analysis)
+              {'\n\n'}
+              • Tap the lightbulb icon to turn on the phone flashlight (for low light scans)
+              {'\n\n'}
+              • Accept the scan after taking it with the green check, or retake by pressing the red x.
+              {'\n\n'}
+            </Text>
+            <Pressable
+              style={styles.modalButton}
+              onPress={() => setHelpModalVisible(false)}
+            >
+              <Text style={styles.modalButtonText}>Got it!</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      
+
     </>
   );
 }
@@ -444,5 +480,63 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: "row",
     justifyContent: "flex-end"
-  }
+  },
+    modal: {
+    alignItems: "center",
+    backgroundColor: "black",
+    bottom: 0,
+    flex: 1,
+    justifyContent: "center",
+    left: 0,
+    opacity: 0.5,
+    position: "absolute",
+    right: 0,
+    top: 0,
+  },
+    modalOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.5)"
+  },
+  modalContent: {
+    backgroundColor: "white",
+    borderRadius: 20,
+    padding: 30,
+    margin: 20,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    borderRadius : 15,
+    padding: 15,
+    borderColor: "black",
+    borderWidth: 2,
+    backgroundColor: "#FFC904",
+    textAlign: "center",
+    marginBottom: 20
+  },
+  modalText: {
+    fontSize: 15,
+    lineHeight: 24,
+  },
+  modalButton: {
+    backgroundColor: "#FFC904",
+    borderRadius: 15,
+    padding: 15,
+    alignItems: "center"
+  },
+  modalButtonText: {
+    color: "black",
+    fontSize: 16,
+    fontWeight: "bold"
+  },
 });

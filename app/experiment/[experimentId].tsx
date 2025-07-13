@@ -29,6 +29,8 @@ export default function ExperimentScreen() {
   const [newMode, setNewMode] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
+  const [helpModalVisible, setHelpModalVisible] = useState(false);
+
 
 
   const [experiment, setExperiment] = useState<Experiment>();
@@ -38,6 +40,7 @@ export default function ExperimentScreen() {
   const [currentDateValue, setCurrentDateValue] = useState("");
   const [currentDescriptionValue, setCurrentDescriptionValue] = useState("");
   const [currentNotesValue, setCurrentNotesValue] = useState("");
+  
 
 
   const [dataMarkedDeleted, setDataMarkedDeleted] = useState<number[]>([]);
@@ -96,7 +99,10 @@ export default function ExperimentScreen() {
   }
 
 
-  const help_ = () => { /* TODO */ };
+  const help_ = () => { 
+    setHelpModalVisible(true);
+  };
+
 
 
   // Simple export and share of the screen as a png image.
@@ -503,6 +509,44 @@ export default function ExperimentScreen() {
       </View>
       </Modal>
 
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={helpModalVisible}
+        onRequestClose={() => setHelpModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Experiment Page Help</Text>
+            <Text style={styles.modalText}>
+              This is the experiment page, where you manage data for a single experiment
+              {'\n\n'}
+              • Set a name for your experiment in the name field to organize experiments
+              {'\n\n'}
+              • Tap the type to change the colorimetric analysis algorithm depending on experiment target (*note*: IgG is currently the only experiment type supported)
+              {'\n\n'}
+              • Tap the picture icon to add or take scans of the test strip
+              {'\n\n'}
+              • Tap the arrow icon to export the data
+              {'\n\n'}
+              • Tap the pencil icon to enable editing on the experiment page
+              {'\n\n'}
+              • After scanning and marking points, press analyze to see results
+              {'\n\n'}
+              • To delete a scan, while in edit mode, press and hold on a thumbnail of a scan until outlined, then click save.
+              {'\n\n'}
+            </Text>
+            <Pressable
+              style={styles.modalButton}
+              onPress={() => setHelpModalVisible(false)}
+            >
+              <Text style={styles.modalButtonText}>Got it!</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+
 
     </>
   );
@@ -655,5 +699,51 @@ const styles = StyleSheet.create({
     position: "absolute",
     right: 0,
     top: 0,
-  }
+  },
+    modalOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.5)"
+  },
+  modalContent: {
+    backgroundColor: "white",
+    borderRadius: 20,
+    padding: 30,
+    margin: 20,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    borderRadius : 15,
+    padding: 15,
+    borderColor: "black",
+    borderWidth: 2,
+    backgroundColor: "#FFC904",
+    textAlign: "center",
+    marginBottom: 20
+  },
+  modalText: {
+    fontSize: 15,
+    lineHeight: 20,
+  },
+  modalButton: {
+    backgroundColor: "#FFC904",
+    borderRadius: 15,
+    padding: 15,
+    alignItems: "center"
+  },
+  modalButtonText: {
+    color: "black",
+    fontSize: 16,
+    fontWeight: "bold"
+  },
 });

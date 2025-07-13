@@ -19,6 +19,8 @@ export default function CanvasScreen() {
 
 
   const [isSpinning, setIsSpinning] = useState(false);
+  const [helpModalVisible, setHelpModalVisible] = useState(false);
+
 
 
   const [data, setData] = useState<null|DataPoint>(null);
@@ -167,7 +169,9 @@ export default function CanvasScreen() {
   console.log(`Selected Spot: ${selectedOverlayId}`);
 
 
-  const help_ = () => { /* TODO */ };
+  const help_ = () => { 
+    setHelpModalVisible(true);
+  };
 
 
   const add_ = () => {
@@ -600,6 +604,43 @@ export default function CanvasScreen() {
       </View>
       </Modal>
 
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={helpModalVisible}
+        onRequestClose={() => setHelpModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Canvas Page Help</Text>
+            <Text style={styles.modalText}>
+              This is the canvas page, where you mark test points on your capture
+              {'\n\n'}
+              • Create a test point with the wand icon, and select a test point from the bottom bar
+              {'\n\n'}
+              • Move and resize the test point with pinching and dragging to cover a mark on the test strip
+              {'\n\n'}
+              • Assign the marker's classification by tapping the name at the top of the canvas
+              {'\n\n'}
+                    • <Text style={{fontWeight: 'bold'}}>Baseline</Text>: mark a location on the test strip with no sample as a control point.
+                                  {'\n'}
+                    • <Text style={{fontWeight: 'bold'}}>Sample</Text>: mark all experimental samples with this label
+                                  {'\n'}
+                    • <Text style={{fontWeight: 'bold'}}>White</Text>: mark the white control point with this label
+                                  {'\n'}
+                    • <Text style={{fontWeight: 'bold'}}>Black</Text>: mark the black control point with this label
+              {'\n'}
+            </Text>
+            <Pressable
+              style={styles.modalButton}
+              onPress={() => setHelpModalVisible(false)}
+            >
+              <Text style={styles.modalButtonText}>Got it!</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
     </>
   );
 }
@@ -684,5 +725,51 @@ const styles = StyleSheet.create({
     height: 40,
     margin: 10,
     width: 40
-  }
+  },
+    modalOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.5)"
+  },
+  modalContent: {
+    backgroundColor: "white",
+    borderRadius: 20,
+    padding: 30,
+    margin: 20,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    borderRadius : 15,
+    padding: 15,
+    borderColor: "black",
+    borderWidth: 2,
+    backgroundColor: "#FFC904",
+    textAlign: "center",
+    marginBottom: 20
+  },
+  modalText: {
+    fontSize: 15,
+    lineHeight: 24,
+  },
+  modalButton: {
+    backgroundColor: "#FFC904",
+    borderRadius: 15,
+    padding: 15,
+    alignItems: "center"
+  },
+  modalButtonText: {
+    color: "black",
+    fontSize: 16,
+    fontWeight: "bold"
+  },
 });

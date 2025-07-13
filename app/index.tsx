@@ -4,12 +4,12 @@ import SearchWarningIcon from "@/components/searchwarningicon";
 import { Summary } from "@/components/summary";
 import { Experiment } from "@/types/experiment";
 import { createExperiment, debugStorage, deletedUnsavedExperiments, getExperiments, serialize } from "@/utilities/storage";
-import { faUser } from "@fortawesome/free-regular-svg-icons";
+import { faQuestion } from "@fortawesome/free-solid-svg-icons";
 import { faFlaskVial,faSearch} from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-native-fontawesome";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
-import { NativeSyntheticEvent, Pressable, ScrollView, StyleSheet, Text, TextInput, TextInputSubmitEditingEventData, View } from "react-native";
+import { Modal, NativeSyntheticEvent, Pressable, ScrollView, StyleSheet, Text, TextInput, TextInputSubmitEditingEventData, View } from "react-native";
 
 
 export default function LabBookScreen() {
@@ -20,6 +20,7 @@ export default function LabBookScreen() {
 
   const [allExperiments, setAllExperiments] = useState<Experiment[]>();
   const [filteredExperiments, setFilteredExperiments] = useState<Experiment[]>();
+  const [helpModalVisible, setHelpModalVisible] = useState(false);
 
 
   useFocusEffect(
@@ -50,7 +51,9 @@ export default function LabBookScreen() {
   }
 
 
-  const help_ = () => { /* TODO */ };
+  const help_ = () => { 
+    setHelpModalVisible(true);
+  };
 
 
   const create_ = async () => {
@@ -87,7 +90,7 @@ export default function LabBookScreen() {
         />
         <Text style={styles.title}>Lab Book</Text>
         <Button
-          icon={faUser}
+          icon={faQuestion}
           margin={10}
           onPress={help_}
         />
@@ -132,6 +135,41 @@ export default function LabBookScreen() {
         />
       </View>
 
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={helpModalVisible}
+        onRequestClose={() => setHelpModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Lab Book Help</Text>
+            <Text style={styles.modalText}>
+              Welcome to the Colorimetric Sensing Lab Book!
+              {'\n\n'}
+              This app helps you manage and analyze your colorimetric sensing experiments.
+              {'\n\n'}
+              • Tap the flask icon to create a new experiment
+              {'\n\n'}
+              • Tap the help icon for information on app functionality for your current page
+              {'\n\n'}
+              • Use the search bar to find specific experiments
+              {'\n\n'}
+              • Tap on any experiment to view details and capture data
+              {'\n\n'}
+              • Your experiments are automatically saved locally
+              {'\n\n'}
+            </Text>
+            <Pressable
+              style={styles.modalButton}
+              onPress={() => setHelpModalVisible(false)}
+            >
+              <Text style={styles.modalButtonText}>Got it!</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
 
     </>
   );
@@ -171,5 +209,51 @@ const styles = StyleSheet.create({
     height: 40,
     marginLeft: 10,
     padding: 10
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.5)"
+  },
+  modalContent: {
+    backgroundColor: "white",
+    borderRadius: 20,
+    padding: 30,
+    margin: 20,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    borderRadius : 15,
+    padding: 15,
+    borderColor: "black",
+    borderWidth: 2,
+    backgroundColor: "#FFC904",
+    textAlign: "center",
+    marginBottom: 20
+  },
+  modalText: {
+    fontSize: 15,
+    lineHeight: 24,
+  },
+  modalButton: {
+    backgroundColor: "#FFC904",
+    borderRadius: 15,
+    padding: 15,
+    alignItems: "center"
+  },
+  modalButtonText: {
+    color: "black",
+    fontSize: 16,
+    fontWeight: "bold"
   },
 });
