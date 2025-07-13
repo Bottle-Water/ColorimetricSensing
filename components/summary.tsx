@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { faCalendarCheck,faCommentDots } from "@fortawesome/free-regular-svg-icons";
 import { faFlask } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-native-fontawesome";
+import { checkReadiness, isComplete } from "@/components/canvas";
 
 
 export function Summary({experiment}: {experiment: Experiment}) {
@@ -12,12 +13,24 @@ export function Summary({experiment}: {experiment: Experiment}) {
   const truncatedDescription = experiment.description;
 
 
+  let status = "Complete";
+  if (experiment.data.length === 0) {
+    status = "Not Performed";
+  }
+  for (const dataPoint of experiment.data) {
+    const readiness = checkReadiness(dataPoint.spots);
+    if (readiness.errors.length > 0 || !isComplete(readiness.sampleSpots)) {
+      status = "In Progress";
+    }
+  }
+
+
   return (
     <View style={styles.card}>
       <View style={styles.info}>
 
 
-        <Text style={styles.type}>{experiment.type}(#{experiment.id})</Text>
+        <Text style={styles.type}>{`${experiment.type} (#${experiment.id})`}</Text>
 
         <Text style={styles.name}>
           <Text> <FontAwesomeIcon icon={faFlask} size={15}/> </Text>
@@ -38,9 +51,8 @@ export function Summary({experiment}: {experiment: Experiment}) {
       </View>
 
 
-      {/*Show PDF*/}
-      <View style={styles.report}>
-        <Text>Report Not Ready</Text>
+      <View style={styles.status}>
+        <Text style={{fontStyle: "italic"}}>{status}</Text>
       </View>
 
 
@@ -86,8 +98,10 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
     margin: 2 
   },
-  report: {
+  status: {
     alignItems: "center",
+    backgroundColor: "#F9F9ED",
+    borderRadius: 10,
     flex: 1,
     justifyContent: "center"
   }
