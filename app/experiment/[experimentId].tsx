@@ -518,6 +518,7 @@ export default function ExperimentScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Experiment Page Help</Text>
+            <ScrollView>
             <Text style={styles.modalText}>
               This is the experiment page, where you manage data for a single experiment
               {'\n\n'}
@@ -536,6 +537,7 @@ export default function ExperimentScreen() {
               • To delete a scan, while in edit mode, press and hold on a thumbnail of a scan until outlined, then click save.
               {'\n\n'}
             </Text>
+            </ScrollView>
             <Pressable
               style={styles.modalButton}
               onPress={() => setHelpModalVisible(false)}

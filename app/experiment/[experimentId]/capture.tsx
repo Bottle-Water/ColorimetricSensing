@@ -5,7 +5,7 @@ import { faFileImage, faLightbulb } from "@fortawesome/free-regular-svg-icons";
 import { faArrowLeft, faCamera, faCheck, faQuestion, faXmark } from "@fortawesome/free-solid-svg-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useRef, useState } from 'react';
-import { Alert, Dimensions, Image, StyleSheet, Text, View, Modal, Pressable } from 'react-native';
+import { Alert, Dimensions, Image, ScrollView, StyleSheet, Text, View, Modal, Pressable } from 'react-native';
 import { Camera, useCameraDevice, useCameraPermission } from 'react-native-vision-camera';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -383,6 +383,7 @@ export default function CaptureScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Capture Page Help</Text>
+            <ScrollView>
             <Text style={styles.modalText}>
               This is the capture page, where you take a capture of a test strip for analysis
               {'\n\n'}
@@ -395,6 +396,7 @@ export default function CaptureScreen() {
               • Accept the scan after taking it with the green check, or retake by pressing the red x.
               {'\n\n'}
             </Text>
+            </ScrollView>
             <Pressable
               style={styles.modalButton}
               onPress={() => setHelpModalVisible(false)}

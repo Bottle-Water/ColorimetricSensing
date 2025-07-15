@@ -144,6 +144,7 @@ export default function LabBookScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Lab Book Help</Text>
+            <ScrollView>
             <Text style={styles.modalText}>
               Welcome to the Colorimetric Sensing Lab Book!
               {'\n\n'}
@@ -160,6 +161,7 @@ export default function LabBookScreen() {
               • Your experiments are automatically saved locally
               {'\n\n'}
             </Text>
+            </ScrollView>
             <Pressable
               style={styles.modalButton}
               onPress={() => setHelpModalVisible(false)}

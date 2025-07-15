@@ -629,6 +629,7 @@ export default function CanvasScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Canvas Page Help</Text>
+            <ScrollView>
             <Text style={styles.modalText}>
               This is the canvas page, where you mark test points on your capture
               {'\n\n'}
@@ -647,6 +648,7 @@ export default function CanvasScreen() {
                     • <Text style={{fontWeight: 'bold'}}>Black</Text>: mark the black control point with this label
               {'\n'}
             </Text>
+            </ScrollView>
             <Pressable
               style={styles.modalButton}
               onPress={() => setHelpModalVisible(false)}
