@@ -1,6 +1,7 @@
 import { Button } from "@/components/button";
-import { setSpotColor } from "@/components/canvas";
+//import { setSpotColor } from "@/components/canvas";
 import { DataPoint, Spot, SpotType } from "@/types/data";
+import { extractColor } from "@/utilities/imgproc";
 import { getDataPoint, saveDataPoint, serialize } from "@/utilities/storage";
 import { faArrowLeft, faCheck, faQuestion, faWandMagicSparkles, faXmark } from "@fortawesome/free-solid-svg-icons";
 import { Canvas, Circle, DashPathEffect, Fill, FontStyle, Group, Image, Paragraph, RoundedRect, useImage, Skia} from '@shopify/react-native-skia';
@@ -206,7 +207,15 @@ export default function CanvasScreen() {
       }
     }
 
-    setSpotColor(newSpot, image);
+    // This sets to the color of the pixel
+    // are the center of the spot.
+    // setSpotColor(newSpot, image);
+
+    // This sets to the mean color of the spot.
+    const color = extractColor(image, newSpot);
+    if (color !== null) {
+      newSpot.color = color;
+    }
 
     const newData = {...data};
     newData.spots.push(newSpot);
@@ -265,7 +274,15 @@ export default function CanvasScreen() {
     console.log(`Spot X Coordinate: ${spot.area.x}`);
     console.log(`Spot Y Coordinate: ${spot.area.y}`);
 
-    setSpotColor(spot, image);
+    // This sets to the color of the pixel
+    // are the center of the spot.
+    // setSpotColor(spot, image);
+
+    // This sets to the mean color of the spot.
+    const color = extractColor(image, spot);
+    if (color !== null) {
+      spot.color = color;
+    }
 
     // If a reference spot has been updated
     // need to delete any sample spot results.
@@ -637,7 +654,7 @@ export default function CanvasScreen() {
               {'\n\n'}
               • Move and resize the test point with pinching and dragging to cover a mark on the test strip
               {'\n\n'}
-              • Assign the marker's classification by tapping the name at the top of the canvas
+              • Assign the marker&apos;s classification by tapping the name at the top of the canvas
               {'\n\n'}
                     • <Text style={{fontWeight: 'bold'}}>Baseline</Text>: mark a location on the test strip with no sample as a control point.
                                   {'\n'}

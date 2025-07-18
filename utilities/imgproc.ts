@@ -1,5 +1,6 @@
 import { AlphaType, ColorType, Skia, SkImage } from '@shopify/react-native-skia';
 import { ColorConversionCodes, DataTypes, HoughModes, LineTypes, Mat, ObjectType, OpenCV } from 'react-native-fast-opencv';
+import { RGBcolor, Spot } from "@/types/data";
 
 
 function cvtSkImageToGrayMat(image: SkImage) {
@@ -69,6 +70,50 @@ function detectCircles(image: SkImage) {
 
   OpenCV.clearBuffers();
   return circles;
+}
+
+
+export function extractColor(image: SkImage, spot: Spot) {
+
+  // Extract and set the color of the spot.
+
+  const imageInfo = image.getImageInfo();
+  console.log("Image Info:");
+  console.log(imageInfo);
+
+  const pixelData = image.readPixels();
+  if (imageInfo.colorType === ColorType.RGBA_8888 && pixelData !== null && pixelData instanceof Uint8Array) {
+    // Only RGBA images are supported for now.
+
+    const mat = OpenCV.bufferToMat('uint8', image.height(), image.width(), 4, pixelData);
+
+    const mask = OpenCV.createObject(ObjectType.Mat, image.height(), image.width(), DataTypes.CV_8UC1);
+
+    const black = OpenCV.createObject(ObjectType.Scalar, 0);
+    OpenCV.invoke("bitwise_and", mask, black, mask);
+
+    const white = OpenCV.createObject(ObjectType.Scalar, 255);
+    const center = OpenCV.createObject(ObjectType.Point, spot.area.x, spot.area.y);
+    OpenCV.invoke("circle", mask, center, spot.area.r, white, -1, LineTypes.FILLED);
+
+    const {a, b, c} = OpenCV.toJSValue(OpenCV.invoke("mean", mat, mask));
+    const red = a;
+    const green = b !== undefined ? b : 0;
+    const blue = c !== undefined ? c : 0;
+
+    console.log(`Spot: RED=${red} GREEN=${green} BLUE=${blue}`);
+
+    const color: RGBcolor = {
+      red: red,
+      green: green,
+      blue: blue
+    };
+
+    OpenCV.clearBuffers();
+    return color;
+  }
+
+  return null;
 }
 
 
