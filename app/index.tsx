@@ -4,8 +4,7 @@ import SearchWarningIcon from "@/components/searchwarningicon";
 import { Summary } from "@/components/summary";
 import { Experiment } from "@/types/experiment";
 import { createExperiment, debugStorage, deletedUnsavedExperiments, getExperiments, serialize } from "@/utilities/storage";
-import { faQuestion } from "@fortawesome/free-solid-svg-icons";
-import { faFlaskVial,faSearch} from "@fortawesome/free-solid-svg-icons";
+import { faFlaskVial, faQuestion,faSearch} from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-native-fontawesome";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
@@ -67,9 +66,16 @@ export default function LabBookScreen() {
     console.log(`Searching Keyword: ${searchKeyword}`);
     const newFilteredExperiments = [];
     for (const experiment of allExperiments) {
-      const estr = JSON.stringify(experiment).toLowerCase()
       const kstr = searchKeyword.toLowerCase()
-      if (estr.includes(kstr)) {
+      if (experiment.name.toLowerCase().includes(kstr)) {
+        newFilteredExperiments.push(experiment);
+      } else if (experiment.type.toLowerCase().includes(kstr)) {
+        newFilteredExperiments.push(experiment);
+      } else if ((new Date(experiment.date)).toDateString().toLowerCase().includes(kstr)) {
+        newFilteredExperiments.push(experiment);
+      } else if (experiment.description.toLowerCase().includes(kstr)) {
+        newFilteredExperiments.push(experiment);
+      } else if (experiment.notes.toLowerCase().includes(kstr)) {
         newFilteredExperiments.push(experiment);
       }
     }
