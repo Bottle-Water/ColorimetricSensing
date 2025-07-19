@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "color2-app",
-    "slug": "color2-app",
+    "name": "color-app",
+    "slug": "color-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "color2app",
+    "scheme": "colorapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {

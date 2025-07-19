@@ -1,5 +1,5 @@
 {
-  "name": "color2-app",
+  "name": "color-app",
   "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {
